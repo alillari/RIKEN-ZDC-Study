@@ -92,13 +92,13 @@ def peak_merging(ecal_peaks, hcal_peaks):
 
     clusters = []
     early_hcal_peaks = hcal_peaks[hcal_peaks[:,2] < 36050]
+    #print(early_hcal_peaks)
 
     deep_neutron_event = False
 
     if(ecal_peaks.shape[0] == 2 and hcal_peaks[np.argmax(hcal_peaks[:,3]),2] > 36050):
         deep_neutron_event = True
 
-    distances = sp.spatial.distance.cdist(early_hcal_peaks[:, :3], ecal_peaks[:, :3])
     distances_xy = sp.spatial.distance.cdist(early_hcal_peaks[:, :2], ecal_peaks[:, :2])
 
     xy_distance_cutoff = 90
@@ -109,8 +109,12 @@ def peak_merging(ecal_peaks, hcal_peaks):
     isolated_hcal_peak = early_hcal_peaks[rows_above_threshold,:]
 
     if isolated_hcal_peak.shape[0] > 0:
-        print("Isolated HCal peak event")
-
+        #print("Isolated HCal peak event")
+        #print(isolated_hcal_peak)
+        clusters.append(isolated_hcal_peak)
+        early_hcal_peaks = np.delete(early_hcal_peaks, rows_above_threshold, axis=0)
+    
+    distances = sp.spatial.distance.cdist(early_hcal_peaks[:, :3], ecal_peaks[:, :3])
     closest_ecal_indices = np.argmin(distances, axis=1)
     hcal_to_ecal_pairs = np.column_stack((np.arange(len(early_hcal_peaks)), closest_ecal_indices))
 
@@ -126,7 +130,9 @@ def peak_merging(ecal_peaks, hcal_peaks):
         for hcal_idx in hcal_indices:
             cluster.append(early_hcal_peaks[hcal_idx])
         clusters.append(cluster)
-    
+
+    print(clusters)
+
     return clusters, deep_neutron_event
 
 def HCal_peak_finding(hcal_data, radius):
@@ -144,9 +150,20 @@ def HCal_peak_finding(hcal_data, radius):
             local_maxima_neighbor_energy.append(np.sum(hcal_data[neighbors,3]))
 
     local_maxima = np.array(local_maxima)
-    local_maxima = local_maxima[local_maxima[:,3] > .01]
+    local_maxima_neighbor_energy = np.array(local_maxima_neighbor_energy)
+    
+    peak_energy_threshold = .01
 
-    #TO-DO: epxeriment with adding a neighboring energy cut
+    energy_cut_mask = local_maxima[:,3] > peak_energy_threshold
+    local_maxima_neighbor_energy = local_maxima_neighbor_energy[energy_cut_mask]
+    local_maxima = local_maxima[energy_cut_mask]
+
+    #TO-DO: experiment with the values for the neighboring energy threshold, I have no idea what good values would be
+    
+    neighbor_energy_threshold = .015
+    #print(local_maxima_neighbor_energy.shape)
+    #print(local_maxima.shape)
+    local_maxima = local_maxima[local_maxima_neighbor_energy > neighbor_energy_threshold]
 
     return local_maxima
 
@@ -173,7 +190,7 @@ def rotate_hits(data):
     rotated_data = data@rotation_mat
     return rotated_data
 
-def visualize_2D(original, reconstructed):
+def visualize_2D(original, reconstructed, title1, title2):
     fig = plt.figure(figsize=(20, 8))
 
     ax1 = fig.add_subplot(121)
@@ -189,7 +206,7 @@ def visualize_2D(original, reconstructed):
     energy_max = max(np.max(energy_original), np.max(energy_reconstructed))
 
     sc1 = ax1.scatter(x_original, y_original, c=energy_original, s=energy_original*100, cmap='viridis', alpha=0.6, vmin=energy_min, vmax=energy_max)
-    ax1.set_title('ECal 25mrad filtered hits')
+    ax1.set_title(title1)
     ax1.set_xlabel('X [mm]')
     ax1.set_ylabel('Y [mm]')
     cbar1 = plt.colorbar(sc1, ax=ax1)
@@ -198,7 +215,7 @@ def visualize_2D(original, reconstructed):
     ax2 = fig.add_subplot(122)
     
     sc2 = ax2.scatter(x_reconstructed, y_reconstructed, c=energy_reconstructed, s=energy_reconstructed*100, cmap='viridis', alpha=0.6, vmin=energy_min, vmax=energy_max)
-    ax2.set_title('ECal Peaks')
+    ax2.set_title(title2)
     ax2.set_xlabel('X [mm]')
     ax2.set_ylabel('Y [mm]')
     cbar2 = plt.colorbar(sc2, ax=ax2)
@@ -217,7 +234,7 @@ def visualize_2D(original, reconstructed):
     plt.show()
 
 
-def visualize(original, reconstructed):
+def visualize(original, reconstructed, title1, title2):
     fig = plt.figure(figsize=(20, 8))
 
     ax1 = fig.add_subplot(121, projection='3d')
@@ -235,7 +252,7 @@ def visualize(original, reconstructed):
     energy_max = max(np.max(energy_original), np.max(energy_reconstructed))
 
     sc1 = ax1.scatter(x_original, y_original, z_original, c=energy_original, s=energy_original*100, cmap='viridis', alpha=0.6, vmin=energy_min, vmax=energy_max)
-    ax1.set_title('HCal 25mrad rotated filtered hits')
+    ax1.set_title(title1)
     ax1.set_xlabel('X [mm]')
     ax1.set_ylabel('Y [mm]')
     ax1.set_zlabel('Z [mm]')
@@ -245,7 +262,7 @@ def visualize(original, reconstructed):
     ax2 = fig.add_subplot(122, projection='3d')
 
     sc2 = ax2.scatter(x_reconstructed, y_reconstructed, z_reconstructed, c=energy_reconstructed, s=energy_reconstructed*100, cmap='viridis', alpha=0.6, vmin=energy_min, vmax=energy_max)
-    ax2.set_title('HCal peak clustering')
+    ax2.set_title(title2)
     ax2.set_xlabel('X [mm]')
     ax2.set_ylabel('Y [mm]')
     ax2.set_zlabel('Z [mm]')
@@ -300,12 +317,13 @@ good_ecal_data = energy_cut(good_ecal_data, .005)
 ecal_peaks = ECal_peak_finding(good_ecal_data)
 hcal_peaks = HCal_peak_finding(good_hcal_data, 80)
 
-visualize_2D(good_ecal_data, ecal_peaks)
-visualize(good_hcal_data, hcal_peaks)
+visualize_2D(good_ecal_data, ecal_peaks, "ECal data 25 mrad rotated, energy cut", "ECal Peak Finding")
+visualize(good_hcal_data, hcal_peaks[hcal_peaks[:,2] < 36050], "HCal data 25 mrad rotated, energy cut", "HCal Early Peak")
 
 proto_clusters, neutron_check = peak_merging(ecal_peaks, hcal_peaks)
 proto_gamma_clusters = filter_cluster(proto_clusters, neutron_check)
+print(proto_gamma_clusters[0][0])
 gamma0_cluster = expand_cluster(proto_gamma_clusters[0], good_ecal_data, good_hcal_data, 37, .02, 400, 80)
 gamma1_cluster = expand_cluster(proto_gamma_clusters[1], good_ecal_data, good_hcal_data, 37, .02, 400, 80)
 both_gamma_clusters = np.append(gamma0_cluster, gamma1_cluster, axis=0)
-visualize(good_hcal_data, both_gamma_clusters)
+visualize(good_hcal_data, both_gamma_clusters, "HCal data 25mrad rotated", "Expanded HCal gamma clusters")
