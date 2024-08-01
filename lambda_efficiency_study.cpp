@@ -11,6 +11,28 @@
 #include <iostream>
 #include <cmath>
 
+bool beam_pipe_collision(const TTreeReaderArray<int>& pdg){
+	int proton_num = 2212;
+	int neutral_pion = 111;
+	int positive_pion = 211;
+	int negative_pion = -211;
+
+	int pion_count = 0;	
+	for(int i = 0; i < pdg.GetSize(); ++i){
+		int thisparticle = pdg[i];
+		if(thisparticle == proton_num || thisparticle == positive_pion || thisparticle == negative_pion){
+			return false;
+		}
+		if(thisparticle == neutral_pion){
+			++pion_count;
+		}
+		if(pion_count > 1){
+			return false;
+		}
+	}
+	return true;
+}
+
 std::vector<double> rotate_point(std::vector<double> point){
 	float theta = .025;
 	std::vector<double> rotated_point = {cos(theta)*point[0] + sin(theta)*point[2], point[1], -sin(theta)*point[0] + cos(theta)*point[2]};
@@ -85,8 +107,9 @@ float distance_neutron_closest_gamma(std::vector<double> neutron_vec, std::vecto
 
 int main(){
 	TChain* my_chain = new TChain("events");
-	my_chain->Add("../lambda_20to220GeV.edm4hep.root");
+	//my_chain->Add("/home/alessio/RIKENSUMMER/eic/epic/lambda_20to220GeV.edm4hep.root");
 	//my_chain->Add("/home/alessio/RIKENSUMMER/data/*.root");
+	my_chain->Add("/home/alessio/RIKENSUMMER/data/Lambda_allGeV_ZDC_lyso_sipm.edm4hep_r100.root");
 	//my_chain->Add("/home/alessio/RIKENSUMMER/angle_data/*.root");
 
 	TFile* output = new TFile("lambda_study_output.root", "RECREATE");
@@ -101,6 +124,10 @@ int main(){
 	TH2F* lambda_decay_position_angle = new TH2F("lambda_decay_position_angle", "#Lambda decay position vs. #Lambda angle with proton beam; Decay position [mm]; #Lambda angle [rad]", 25, 0, 35500, 25, 0, .022);
 	TH1F* neutron_momentum_dist = new TH1F("neutron_momentum_dist", "Distribution of neutron momentum; neutron momentum [GeV]; Counts", 100, 0, 270);
 	TH1F* pion_momentum_dist = new TH1F("pion_momentum_dist", "Distribution of #pi^{0} momentum; #pi^{0} momentum [GeV]; Counts", 100, 0, 100);
+	TH1F* neutron_z_end_point_dist = new TH1F("neutron_z_end_point_dist", "Distribution of the 25mrad z end point of neutron; Z end point [mm]; Counts", 100, 35600, 37000);
+	TH1F* two_gamma_z_end_point_dist = new TH1F("two_gamma_z_end_point", "Distribution of the 25mrad z end point of both #gamma; Z end point [mm]; Counts", 100, 35600, 36200);
+	TH2F* neutron_xy_end_point_dist = new TH2F("neutron_xy_end_point_dist", "Distribution of 25mrad x vs y end points of neutron; X end point [mm]; Y end point [mm]", 200, -300, 300, 200, -300, 300);
+	TH2F* two_gamma_xy_end_point_dist = new TH2F("two_gamma_xy_end_point_dist", "Distribution of 25mrad x vs y end points of two #gamma; X end point [mm]; Y end point [mm]", 200, -300, 300, 200, -300, 300);
 	TH2F* lambda_neutron_momentum_dist = new TH2F("lambda_neutron_momentum_dist", "#Lambda momentum vs neutron momentum; #Lambda momentum [GeV]; neutron momentum [GeV]", 100, 20, 270, 100, 0, 270);
 	TH2F* lambda_pion_momentum_dist = new TH2F("lambda_pion_momentum_dist", "#Lambda momentum vs #pi^{0} momentum; #Lambda momentum [GeV]; #pi^{0} [GeV]", 100, 20, 270, 100, 0, 100);
 	TH2F* lambda_decay_pion_momentum = new TH2F("lambda_decay_pion_momentum", "#Lambda decay distance vs #pi^{0} momentum; #Lambda decay distance [mm]; #pi^{0} [GeV]", 100, 0, 35500, 100, 0, 100);
@@ -120,6 +147,11 @@ int main(){
 	TH2F* hit_lambda_decay_position_angle = new TH2F("hit_lambda_decay_position_angle", "#Lambda decay position vs. #Lambda angle with proton beam for all particles in Ecal; Decay position [mm]; #Lambda angle [rad]", 25, 0, 35500, 25, 0, .022);
 	TH1F* hit_neutron_momentum_dist = new TH1F("hit_neutron_momentum_dist", "Distribution of neutron momentum of all particle in ZDC; neutron momentum [GeV]; Counts", 100, 0, 270);
 	TH1F* hit_pion_momentum_dist = new TH1F("hit_pion_momentum_dist", "Distribution of #pi^{0} momentum of all particle in ZDC; #pi^{0} momentum [GeV]; Counts", 100, 0, 100);
+	TH1F* hit_neutron_z_end_point_dist = new TH1F("hit_neutron_z_end_point_dist", "Distribution of the 25mrad z end point of neutron for all particles land in ZDC; Z end point [mm]; Counts", 100, 35600, 37000);
+	TH1F* hit_two_gamma_z_end_point_dist = new TH1F("hit_two_gamma_z_end_point", "Distribution of the 25mrad z end point of both #gamma for all particles land in ZDC; Z end point [mm]; Counts", 100, 35600, 36200);
+	TH2F* hit_neutron_xy_end_point_dist = new TH2F("hit_neutron_xy_end_point_dist", "Distribution of 25mrad x vs y end points of neutron for all particles land in ZDC; X end point [mm]; Y end point [mm]", 200, -300, 300, 200, -300, 300);
+	TH2F* hit_two_gamma_xy_end_point_dist = new TH2F("hit_two_gamma_xy_end_point_dist", "Distribution of 25mrad x vs y end points of two #gamma for all particles land in ZDC; X end point [mm]; Y end point [mm]", 200, -300, 300, 200, -300, 300);
+
 	TH2F* hit_lambda_neutron_momentum_dist = new TH2F("hit_lambda_neutron_momentum_dist", "#Lambda momentum vs neutron momentum of all particle in ZDC; #Lambda momentum [GeV]; neutron momentum [GeV]", 100, 20, 220, 100, 0, 270);
 	TH2F* hit_lambda_pion_momentum_dist = new TH2F("hit_lambda_pion_momentum_dist", "#Lambda momentum vs #pi^{0} momentum of all particle in ZDC; #Lambda momentum [GeV]; #pi^{0} [GeV]", 100, 20, 270, 100, 0, 100);
 	TH2F* hit_lambda_decay_pion_momentum = new TH2F("hit_lambda_decay_pion_momentum", "#Lambda decay distance vs #pi^{0} momentum for all particle in ZDC; #Lambda decay distance [mm]; #pi^{0} momentum [GeV]", 100, 0, 35500, 100, 0, 100);
@@ -165,6 +197,9 @@ int main(){
 	TTreeReaderArray<int> parent_id(my_reader, "_MCParticles_parents.index");
 
 	while(my_reader.Next()){
+		bool beam_pipe_check = beam_pipe_collision(pdg);
+		if(!beam_pipe_check){continue;}
+		
 		float mom_mag = std::sqrt(std::pow(mom_x[0], 2) + std::pow(mom_y[0], 2) + std::pow(mom_z[0], 2));
 		float decay_dist = std::sqrt(std::pow(vert_x[1], 2) + std::pow(vert_y[1], 2) + std::pow(vert_z[1], 2));
 		float lambda_angle = std::acos((mom_x[0]*std::sin(-.025) + mom_z[0]*std::cos(-.025))/(mom_mag));
@@ -175,12 +210,8 @@ int main(){
 		int pion_index = find_particle_index(111, pdg, 1, parent_id);
 		int neutron_index = find_particle_index(2112, pdg, 1, parent_id);
 		if(gamma1_index == 0 || gamma2_index == 0 || pion_index == 0 || neutron_index == 0){continue;}
+		
 		float neutron_mom_mag = std::sqrt(std::pow(mom_x[neutron_index], 2) + std::pow(mom_y[neutron_index], 2) + std::pow(mom_z[neutron_index], 2));
-		if(pdg.GetSize() > 15 || neutron_mom_mag < 5){
-			//std::cout<<"Low neutron momentum, event id: "<<std::to_string(row_id[0])<<std::endl;		
-			continue;
-		}
-
 		float pion_mom_mag = std::sqrt(std::pow(mom_x[pion_index], 2) + std::pow(mom_y[pion_index], 2) + std::pow(mom_z[pion_index], 2));
 		
 		lambda_momentum_dist->Fill(mom_mag);
@@ -213,25 +244,43 @@ int main(){
 		std::vector<double> gamma2_pos = loc_in_ecal(vert_x, vert_y, vert_z, mom_x, mom_y, mom_z, gamma2_index);
 		std::vector<double> neutron_pos = loc_in_ecal(vert_x, vert_y, vert_z, mom_x, mom_y, mom_z, neutron_index);
 
+		std::vector<double> rotated_gamma1_pos = rotate_point(gamma1_pos);
+		std::vector<double> rotated_gamma2_pos = rotate_point(gamma2_pos);
+		std::vector<double> rotated_neutron_pos = rotate_point(neutron_pos);
+
 		float neutron_gamma_dist = distance_neutron_closest_gamma(neutron_pos, gamma1_pos, gamma2_pos);
 
 		neutron_gamma_closest_distance_dist->Fill(neutron_gamma_dist);
 		lambda_momentum_closest_distance->Fill(mom_mag, neutron_gamma_dist);
 		lambda_decay_dist_closest_distance->Fill(decay_dist, neutron_gamma_dist);
 
-		bool is_gamma1_in_ecal = gamma1_pos[0] < -600 && gamma1_pos[0] > -1200 && gamma1_pos[1] < 300 && gamma1_pos[1] > -300;
-		bool is_gamma2_in_ecal = gamma2_pos[0] < -600 && gamma2_pos[0] > -1200 && gamma2_pos[1] < 300 && gamma2_pos[1] > -300;
-		bool is_neutron_in_ecal = neutron_pos[0] < -600 && neutron_pos[0] > -1200 && neutron_pos[1] < 300 && neutron_pos[1] > -300;
+		bool is_gamma1_in_ecal = rotated_gamma1_pos[0] < 280 && rotated_gamma1_pos[0] > -280 && rotated_gamma1_pos[1] < 280 && rotated_gamma1_pos[1] > -280;
+		bool is_gamma2_in_ecal = rotated_gamma2_pos[0] < 280 && rotated_gamma2_pos[0] > -280 && rotated_gamma2_pos[1] < 280 && rotated_gamma2_pos[1] > -280;
+		bool is_neutron_in_ecal = rotated_neutron_pos[0] < 280 && rotated_neutron_pos[0] > -280 && rotated_neutron_pos[1] < 280 && rotated_neutron_pos[1] > -280; 
+		bool ecal_plane_distance_check = neutron_gamma_dist > 40;
 
 		std::vector<double> gamma1_endpoint({endpoint_x[gamma1_index], endpoint_y[gamma1_index], endpoint_z[gamma1_index]});
 		std::vector<double> gamma2_endpoint({endpoint_x[gamma2_index], endpoint_y[gamma2_index], endpoint_z[gamma2_index]});
 		std::vector<double> neutron_endpoint({endpoint_x[neutron_index], endpoint_y[neutron_index], endpoint_z[neutron_index]});
 		double neutron_gamma_endpoint_dist = distance_neutron_closest_gamma(neutron_endpoint, gamma1_endpoint, gamma2_endpoint);
+		std::vector<double> rotated_gamma1_endpoint = rotate_point(gamma1_endpoint);
+		std::vector<double> rotated_gamma2_endpoint = rotate_point(gamma2_endpoint);
+		std::vector<double> rotated_neutron_endpoint = rotate_point(neutron_endpoint);
 
-		
-		
-		if(is_gamma1_in_ecal && is_gamma2_in_ecal && is_neutron_in_ecal){
-			//std::cout<< std::to_string(row_id[0])<<std::endl;
+		bool endpoint_distance_check = neutron_gamma_endpoint_dist > 60;
+
+		neutron_z_end_point_dist->Fill(rotated_neutron_endpoint[2]);
+		two_gamma_z_end_point_dist->Fill(rotated_gamma1_endpoint[2]);
+		two_gamma_z_end_point_dist->Fill(rotated_gamma2_endpoint[2]);
+		neutron_xy_end_point_dist->Fill(rotated_neutron_endpoint[0], rotated_neutron_endpoint[1]);
+		two_gamma_xy_end_point_dist->Fill(rotated_gamma1_endpoint[0], rotated_gamma1_endpoint[1]);
+		two_gamma_xy_end_point_dist->Fill(rotated_gamma2_endpoint[0], rotated_gamma2_endpoint[1]);
+
+		neutron_gamma_endpoint_closest_distance_dist->Fill(neutron_gamma_endpoint_dist);
+		bool neutron_endpoint_check = rotated_neutron_endpoint[2] > 35770;
+
+		if(is_gamma1_in_ecal && is_gamma2_in_ecal && is_neutron_in_ecal && neutron_endpoint_check && endpoint_distance_check){
+			std::cout<< std::to_string(row_id[0])<<std::endl;
 			hit_lambda_momentum_dist->Fill(mom_mag);
 			hit_lambda_decay_position_dist->Fill(decay_dist);
 			hit_lambda_angle_dist->Fill(lambda_angle);
@@ -262,7 +311,15 @@ int main(){
 			neutron_hit_map->Fill(rotated_neutron_pos[0], rotated_neutron_pos[1]);
 			gamma_hit_map->Fill(rotated_gamma1_pos[0], rotated_gamma1_pos[1]);
 			gamma_hit_map->Fill(rotated_gamma2_pos[0], rotated_gamma2_pos[1]);
+
+			hit_neutron_z_end_point_dist->Fill(rotated_neutron_endpoint[2]);
+			hit_two_gamma_z_end_point_dist->Fill(rotated_gamma1_endpoint[2]);
+			hit_two_gamma_z_end_point_dist->Fill(rotated_gamma2_endpoint[2]);
+			hit_neutron_xy_end_point_dist->Fill(rotated_neutron_endpoint[0], rotated_neutron_endpoint[1]);
+			hit_two_gamma_xy_end_point_dist->Fill(rotated_gamma1_endpoint[0], rotated_gamma1_endpoint[1]);
+			hit_two_gamma_xy_end_point_dist->Fill(rotated_gamma2_endpoint[0], rotated_gamma2_endpoint[1]);
 		
+			hit_neutron_gamma_endpoint_closest_distance_dist->Fill(neutron_gamma_endpoint_dist);
 		}
 	}
 
@@ -310,6 +367,18 @@ int main(){
 	lambda_momentum_closest_distance->Write();
 	lambda_decay_dist_closest_distance->Write();
 	lambda_angle_neutron_angle->Write();
+
+	neutron_z_end_point_dist->Write();
+	two_gamma_z_end_point_dist->Write();
+	neutron_xy_end_point_dist->Write();
+	two_gamma_xy_end_point_dist->Write();
+	neutron_gamma_endpoint_closest_distance_dist->Write();
+
+	hit_neutron_z_end_point_dist->Write();
+	hit_two_gamma_z_end_point_dist->Write();
+	hit_neutron_xy_end_point_dist->Write();
+	hit_two_gamma_xy_end_point_dist->Write();
+	hit_neutron_gamma_endpoint_closest_distance_dist->Write();
 
 	hit_lambda_momentum_dist->Write();
 	hit_lambda_decay_position_dist->Write();
