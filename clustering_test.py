@@ -1,14 +1,13 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+import mpld3
 import uproot as up
 import math
 import pandas as pd
 from sklearn.neighbors import NearestNeighbors
 from sklearn.cluster import DBSCAN
 import scipy as sp
-from sklearnex import patch_sklearn
-patch_sklearn()
 
 def looping_through_events(indices, ecal_hits_x, ecal_hits_y, ecal_hits_z, hcal_hits_x, hcal_hits_y, hcal_hits_z):
     for event in indices:
@@ -28,6 +27,23 @@ def looping_through_events(indices, ecal_hits_x, ecal_hits_y, ecal_hits_z, hcal_
         looping_hcal_peaks = HCal_peak_finding(looping_hcal_data, 80)
         if filter_based_on_ECal_peaks(looping_ecal_peaks) and filter_based_on_HCal_peaks(looping_hcal_data[looping_hcal_data[:,2] < 36050]):
             print(event)
+
+def make_ecal_and_hcal_peaks(event, ecal_hits_x, ecal_hits_y, ecal_hits_z, hcal_hits_x, hcal_hits_y, hcal_hits_z):
+    rotated_good_event_ecal_hits = rotate_hits(np.column_stack((ecal_hits_x[event],ecal_hits_y[event],ecal_hits_z[event])))
+    rotated_good_event_hcal_hits = rotate_hits(np.column_stack((hcal_hits_x[event],hcal_hits_y[event],hcal_hits_z[event])))
+
+    good_hcal_data = np.column_stack((rotated_good_event_hcal_hits, hcal_hits_energy[event].T))
+    good_ecal_data = np.column_stack((rotated_good_event_ecal_hits, ecal_hits_energy[event].T))
+
+    good_hcal_data = energy_cut(good_hcal_data, .0005)
+    good_ecal_data = energy_cut(good_ecal_data, .005)
+
+    combined_data = np.concatenate((good_ecal_data, good_hcal_data), axis=0)
+
+    ecal_peaks = ECal_peak_finding(good_ecal_data)
+    hcal_peaks = HCal_peak_finding(good_hcal_data, 80)
+
+    return ecal_peaks, hcal_peaks
 
 def draw_one_event(event, ecal_hits_x, ecal_hits_y, ecal_hits_z, hcal_hits_x, hcal_hits_y, hcal_hits_z):
     rotated_good_event_ecal_hits = rotate_hits(np.column_stack((ecal_hits_x[event],ecal_hits_y[event],ecal_hits_z[event])))
@@ -58,7 +74,7 @@ def filter_based_on_ECal_peaks(ecal_peaks):
     return True
 
 def filter_based_on_HCal_peaks(hcal_peaks):
-    if(hcal_peaks.shape[0] < 3):
+    if(hcal_peaks.shape[0] < 2):
         return False
     return True
 
@@ -119,9 +135,15 @@ def expand_cluster(seed_cluster, ecal_hits, hcal_hits, distance_cutoff, energy_j
         cluster = seed_cluster[0].reshape(1,-1)
         added_hits.add(tuple(seed_cluster[0]))
     else:
-        cluster = seed_cluster[1].reshape(1, -1)
-        added_hits.add(tuple(seed_cluster[1]))
+        if(len(seed_cluster) == 2):
+            cluster = seed_cluster[1].reshape(1, -1)
+            added_hits.add(tuple(seed_cluster[1]))
+        else:
+            search_cluster = np.array(seed_cluster[1:])
+            max_energy_index = np.argmax(search_cluster[:, 3])
+            cluster = search_cluster[max_energy_index].reshape(1, -1)
     
+
     seed_position = cluster[:, :3][0]
 
     hcal_neighbors_info = NearestNeighbors(radius=distance_cutoff).fit(hcal_hits[:, :3])
@@ -144,8 +166,8 @@ def expand_cluster(seed_cluster, ecal_hits, hcal_hits, distance_cutoff, energy_j
                 distance_xy = np.linalg.norm(neighbor_position[:2] - seed_position[:2])
                 
                 #TO-DO: add z distance into consideration here
-                if distance_xy < 25:
-                    mod_energy_jump_threshold = 2*energy_jump_threshold 
+                if distance_xy < 40:
+                    mod_energy_jump_threshold = 3*energy_jump_threshold 
 
                 if neighbor_energy <= average_energy + mod_energy_jump_threshold and distance_z <= max_distance_z and distance_xy <= max_distance_xy:
                     new_hits.append(neighbor_hit)
@@ -384,6 +406,7 @@ def visualize(original, reconstructed, title1, title2):
 
     plt.show()
 
+
 #infile="" 
 infile="/home/alessio/RIKENSUMMER/data/Lambda_allGeV_ZDC_lyso_sipm.edm4hep_r100.root"
 
@@ -410,12 +433,27 @@ ecal_hits_z = events_tree["EcalFarForwardZDCHits.position.z"].array(library="np"
 ecal_hits_energy = events_tree["EcalFarForwardZDCHits.energy"].array(library="np")
 
 #looping_through_events(indices, ecal_hits_x, ecal_hits_y, ecal_hits_z, hcal_hits_x, hcal_hits_y, hcal_hits_z)
-draw_one_event(6, ecal_hits_x, ecal_hits_y, ecal_hits_z, hcal_hits_x, hcal_hits_y, hcal_hits_z)
+draw_one_event(5, ecal_hits_x, ecal_hits_y, ecal_hits_z, hcal_hits_x, hcal_hits_y, hcal_hits_z)
+
+event = 5
+
+rotated_good_event_ecal_hits = rotate_hits(np.column_stack((ecal_hits_x[event],ecal_hits_y[event],ecal_hits_z[event])))
+rotated_good_event_hcal_hits = rotate_hits(np.column_stack((hcal_hits_x[event],hcal_hits_y[event],hcal_hits_z[event])))
+
+good_hcal_data = np.column_stack((rotated_good_event_hcal_hits, hcal_hits_energy[event].T))
+good_ecal_data = np.column_stack((rotated_good_event_ecal_hits, ecal_hits_energy[event].T))
+
+good_hcal_data = energy_cut(good_hcal_data, .0005)
+good_ecal_data = energy_cut(good_ecal_data, .005)
+
+combined_data = np.concatenate((good_ecal_data, good_hcal_data), axis=0)
+
+ecal_peaks = ECal_peak_finding(good_ecal_data)
+hcal_peaks = HCal_peak_finding(good_hcal_data, 80)
 
 #proto_clusters, neutron_check = peak_merging(ecal_peaks, hcal_peaks)
-#print(calculate_energy_density_along_cylinder(proto_clusters[0][0][:3],proto_clusters[1][0][:3], good_hcal_data, 60, 7))
 #proto_gamma_clusters = filter_cluster(proto_clusters, neutron_check)
-#gamma0_cluster = expand_cluster(proto_gamma_clusters[0], good_ecal_data, good_hcal_data, 37, .02, 400, 80)
-#gamma1_cluster = expand_cluster(proto_gamma_clusters[1], good_ecal_data, good_hcal_data, 37, .02, 400, 80)
+#gamma0_cluster = expand_cluster(proto_gamma_clusters[0], good_ecal_data, good_hcal_data, 37, .01, 400, 80)
+#gamma1_cluster = expand_cluster(proto_gamma_clusters[1], good_ecal_data, good_hcal_data, 37, .01, 400, 80)
 #both_gamma_clusters = np.append(gamma0_cluster, gamma1_cluster, axis=0)
 #visualize(good_hcal_data, both_gamma_clusters, "HCal data 25mrad rotated", "Expanded HCal gamma clusters")

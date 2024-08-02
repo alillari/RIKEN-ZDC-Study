@@ -108,8 +108,8 @@ float distance_neutron_closest_gamma(std::vector<double> neutron_vec, std::vecto
 int main(){
 	TChain* my_chain = new TChain("events");
 	//my_chain->Add("/home/alessio/RIKENSUMMER/eic/epic/lambda_20to220GeV.edm4hep.root");
-	//my_chain->Add("/home/alessio/RIKENSUMMER/data/*.root");
-	my_chain->Add("/home/alessio/RIKENSUMMER/data/Lambda_allGeV_ZDC_lyso_sipm.edm4hep_r100.root");
+	my_chain->Add("/home/alessio/RIKENSUMMER/data/*.root");
+	//my_chain->Add("/home/alessio/RIKENSUMMER/data/Lambda_allGeV_ZDC_lyso_sipm.edm4hep_r100.root");
 	//my_chain->Add("/home/alessio/RIKENSUMMER/angle_data/*.root");
 
 	TFile* output = new TFile("lambda_study_output.root", "RECREATE");
@@ -124,8 +124,8 @@ int main(){
 	TH2F* lambda_decay_position_angle = new TH2F("lambda_decay_position_angle", "#Lambda decay position vs. #Lambda angle with proton beam; Decay position [mm]; #Lambda angle [rad]", 25, 0, 35500, 25, 0, .022);
 	TH1F* neutron_momentum_dist = new TH1F("neutron_momentum_dist", "Distribution of neutron momentum; neutron momentum [GeV]; Counts", 100, 0, 270);
 	TH1F* pion_momentum_dist = new TH1F("pion_momentum_dist", "Distribution of #pi^{0} momentum; #pi^{0} momentum [GeV]; Counts", 100, 0, 100);
-	TH1F* neutron_z_end_point_dist = new TH1F("neutron_z_end_point_dist", "Distribution of the 25mrad z end point of neutron; Z end point [mm]; Counts", 100, 35600, 37000);
-	TH1F* two_gamma_z_end_point_dist = new TH1F("two_gamma_z_end_point", "Distribution of the 25mrad z end point of both #gamma; Z end point [mm]; Counts", 100, 35600, 36200);
+	TH1F* neutron_z_end_point_dist = new TH1F("neutron_z_end_point_dist", "Distribution of the 25mrad z end point of neutron; Z end point [mm]; Counts", 80, 35650, 37000);
+	TH1F* two_gamma_z_end_point_dist = new TH1F("two_gamma_z_end_point", "Distribution of the 25mrad z end point of both #gamma; Z end point [mm]; Counts", 100, 35650, 36200);
 	TH2F* neutron_xy_end_point_dist = new TH2F("neutron_xy_end_point_dist", "Distribution of 25mrad x vs y end points of neutron; X end point [mm]; Y end point [mm]", 200, -300, 300, 200, -300, 300);
 	TH2F* two_gamma_xy_end_point_dist = new TH2F("two_gamma_xy_end_point_dist", "Distribution of 25mrad x vs y end points of two #gamma; X end point [mm]; Y end point [mm]", 200, -300, 300, 200, -300, 300);
 	TH2F* lambda_neutron_momentum_dist = new TH2F("lambda_neutron_momentum_dist", "#Lambda momentum vs neutron momentum; #Lambda momentum [GeV]; neutron momentum [GeV]", 100, 20, 270, 100, 0, 270);
@@ -147,7 +147,8 @@ int main(){
 	TH2F* hit_lambda_decay_position_angle = new TH2F("hit_lambda_decay_position_angle", "#Lambda decay position vs. #Lambda angle with proton beam for all particles in Ecal; Decay position [mm]; #Lambda angle [rad]", 25, 0, 35500, 25, 0, .022);
 	TH1F* hit_neutron_momentum_dist = new TH1F("hit_neutron_momentum_dist", "Distribution of neutron momentum of all particle in ZDC; neutron momentum [GeV]; Counts", 100, 0, 270);
 	TH1F* hit_pion_momentum_dist = new TH1F("hit_pion_momentum_dist", "Distribution of #pi^{0} momentum of all particle in ZDC; #pi^{0} momentum [GeV]; Counts", 100, 0, 100);
-	TH1F* hit_neutron_z_end_point_dist = new TH1F("hit_neutron_z_end_point_dist", "Distribution of the 25mrad z end point of neutron for all particles land in ZDC; Z end point [mm]; Counts", 100, 35600, 37000);
+	TH1F* hit_neutron_z_end_point_dist = new TH1F("hit_neutron_z_end_point_dist", "Distribution of the 25mrad z end point of neutron for all particles land in ZDC; Z end point [mm]; Counts", 100, 35650, 37000);
+	TH2F* hit_lambda_momentum_vs_neutron_z_end_point = new TH2F("hit_lambda_momentum_vs_neutron_z_end_point", "#Lambda momentum vs. neutron 25mrad rotated z end point for all particles land in ZDC; #Lambda momentum [GeV]; Z [mm]", 100, 20, 270, 80, 35800, 37000);
 	TH1F* hit_two_gamma_z_end_point_dist = new TH1F("hit_two_gamma_z_end_point", "Distribution of the 25mrad z end point of both #gamma for all particles land in ZDC; Z end point [mm]; Counts", 100, 35600, 36200);
 	TH2F* hit_neutron_xy_end_point_dist = new TH2F("hit_neutron_xy_end_point_dist", "Distribution of 25mrad x vs y end points of neutron for all particles land in ZDC; X end point [mm]; Y end point [mm]", 200, -300, 300, 200, -300, 300);
 	TH2F* hit_two_gamma_xy_end_point_dist = new TH2F("hit_two_gamma_xy_end_point_dist", "Distribution of 25mrad x vs y end points of two #gamma for all particles land in ZDC; X end point [mm]; Y end point [mm]", 200, -300, 300, 200, -300, 300);
@@ -277,10 +278,10 @@ int main(){
 		two_gamma_xy_end_point_dist->Fill(rotated_gamma2_endpoint[0], rotated_gamma2_endpoint[1]);
 
 		neutron_gamma_endpoint_closest_distance_dist->Fill(neutron_gamma_endpoint_dist);
-		bool neutron_endpoint_check = rotated_neutron_endpoint[2] > 35770;
+		bool neutron_endpoint_check = rotated_neutron_endpoint[2] > 35900;
 
-		if(is_gamma1_in_ecal && is_gamma2_in_ecal && is_neutron_in_ecal && neutron_endpoint_check && endpoint_distance_check){
-			std::cout<< std::to_string(row_id[0])<<std::endl;
+		if(is_gamma1_in_ecal && is_gamma2_in_ecal && is_neutron_in_ecal){
+			//std::cout<< std::to_string(row_id[0])<<std::endl;
 			hit_lambda_momentum_dist->Fill(mom_mag);
 			hit_lambda_decay_position_dist->Fill(decay_dist);
 			hit_lambda_angle_dist->Fill(lambda_angle);
@@ -318,6 +319,8 @@ int main(){
 			hit_neutron_xy_end_point_dist->Fill(rotated_neutron_endpoint[0], rotated_neutron_endpoint[1]);
 			hit_two_gamma_xy_end_point_dist->Fill(rotated_gamma1_endpoint[0], rotated_gamma1_endpoint[1]);
 			hit_two_gamma_xy_end_point_dist->Fill(rotated_gamma2_endpoint[0], rotated_gamma2_endpoint[1]);
+
+			hit_lambda_momentum_vs_neutron_z_end_point->Fill(mom_mag, rotated_neutron_endpoint[2]);
 		
 			hit_neutron_gamma_endpoint_closest_distance_dist->Fill(neutron_gamma_endpoint_dist);
 		}
@@ -379,6 +382,7 @@ int main(){
 	hit_neutron_xy_end_point_dist->Write();
 	hit_two_gamma_xy_end_point_dist->Write();
 	hit_neutron_gamma_endpoint_closest_distance_dist->Write();
+	hit_lambda_momentum_vs_neutron_z_end_point->Write();
 
 	hit_lambda_momentum_dist->Write();
 	hit_lambda_decay_position_dist->Write();
