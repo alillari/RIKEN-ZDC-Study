@@ -108,8 +108,8 @@ float distance_neutron_closest_gamma(std::vector<double> neutron_vec, std::vecto
 int main(){
 	TChain* my_chain = new TChain("events");
 	//my_chain->Add("/home/alessio/RIKENSUMMER/eic/epic/lambda_20to220GeV.edm4hep.root");
-	my_chain->Add("/home/alessio/RIKENSUMMER/data/*.root");
-	//my_chain->Add("/home/alessio/RIKENSUMMER/data/Lambda_allGeV_ZDC_lyso_sipm.edm4hep_r100.root");
+	//my_chain->Add("/home/alessio/RIKENSUMMER/data/*.root");
+	my_chain->Add("/home/alessio/RIKENSUMMER/data/Lambda_allGeV_ZDC_lyso_sipm.edm4hep_r100.root");
 	//my_chain->Add("/home/alessio/RIKENSUMMER/angle_data/*.root");
 
 	TFile* output = new TFile("lambda_study_output.root", "RECREATE");
@@ -268,6 +268,8 @@ int main(){
 		std::vector<double> rotated_gamma2_endpoint = rotate_point(gamma2_endpoint);
 		std::vector<double> rotated_neutron_endpoint = rotate_point(neutron_endpoint);
 
+		float two_gamma_distance = std::sqrt(std::pow(gamma1_endpoint[0] - gamma2_endpoint[0], 2) + std::pow(gamma1_endpoint[1] - gamma2_endpoint[1], 2) + std::pow(gamma1_endpoint[2] - gamma2_endpoint[2], 2));
+
 		bool endpoint_distance_check = neutron_gamma_endpoint_dist > 60;
 
 		neutron_z_end_point_dist->Fill(rotated_neutron_endpoint[2]);
@@ -278,10 +280,11 @@ int main(){
 		two_gamma_xy_end_point_dist->Fill(rotated_gamma2_endpoint[0], rotated_gamma2_endpoint[1]);
 
 		neutron_gamma_endpoint_closest_distance_dist->Fill(neutron_gamma_endpoint_dist);
-		bool neutron_endpoint_check = rotated_neutron_endpoint[2] > 35900;
+		bool neutron_endpoint_check = rotated_neutron_endpoint[2] > 36000;
+		bool gamma_distance_check = two_gamma_distance > 45;
 
-		if(is_gamma1_in_ecal && is_gamma2_in_ecal && is_neutron_in_ecal){
-			//std::cout<< std::to_string(row_id[0])<<std::endl;
+		if(is_gamma1_in_ecal && is_gamma2_in_ecal && is_neutron_in_ecal && neutron_endpoint_check && gamma_distance_check){
+			std::cout<< std::to_string(row_id[0])<<std::endl;
 			hit_lambda_momentum_dist->Fill(mom_mag);
 			hit_lambda_decay_position_dist->Fill(decay_dist);
 			hit_lambda_angle_dist->Fill(lambda_angle);

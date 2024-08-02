@@ -7,7 +7,44 @@ import math
 import pandas as pd
 from sklearn.neighbors import NearestNeighbors
 from sklearn.cluster import DBSCAN
+import hdbscan
 import scipy as sp
+
+def hdbscan_on_one_event(event, ecal_hits_x, ecal_hits_y, ecal_hits_z, hcal_hits_x, hcal_hits_y, hcal_hits_z):
+    clusterer  = hdbscan.HDBSCAN(min_cluster_size=25, min_samples=1)
+
+    rotated_good_event_ecal_hits = rotate_hits(np.column_stack((ecal_hits_x[event],ecal_hits_y[event],ecal_hits_z[event])))
+    rotated_good_event_hcal_hits = rotate_hits(np.column_stack((hcal_hits_x[event],hcal_hits_y[event],hcal_hits_z[event])))
+
+    good_hcal_data = np.column_stack((rotated_good_event_hcal_hits, hcal_hits_energy[event].T))
+    good_ecal_data = np.column_stack((rotated_good_event_ecal_hits, ecal_hits_energy[event].T))
+
+    good_hcal_data = energy_cut(good_hcal_data, .0005)
+    good_ecal_data = energy_cut(good_ecal_data, .005)
+
+    cluster_labels = clusterer.fit_predict(good_hcal_data)
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    unique_labels = np.unique(cluster_labels)
+    colors = plt.cm.jet(np.linspace(0, 1, len(unique_labels)))
+
+    for k, col in zip(unique_labels, colors):
+        if k == -1:
+            col = [0, 0, 0, 1]
+
+        class_member_mask = (cluster_labels == k)
+        xyz = good_hcal_data[class_member_mask]
+
+        ax.scatter(xyz[:, 0], xyz[:, 1], xyz[:, 2], c=[col], marker='o', s=10)
+
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+    ax.set_title('3D Plot of HCal Hits with Cluster Colors')
+
+    plt.show()
 
 def looping_through_events(indices, ecal_hits_x, ecal_hits_y, ecal_hits_z, hcal_hits_x, hcal_hits_y, hcal_hits_z):
     for event in indices:
@@ -28,7 +65,7 @@ def looping_through_events(indices, ecal_hits_x, ecal_hits_y, ecal_hits_z, hcal_
         if filter_based_on_ECal_peaks(looping_ecal_peaks) and filter_based_on_HCal_peaks(looping_hcal_data[looping_hcal_data[:,2] < 36050]):
             print(event)
 
-def make_ecal_and_hcal_peaks(event, ecal_hits_x, ecal_hits_y, ecal_hits_z, hcal_hits_x, hcal_hits_y, hcal_hits_z):
+def find_gamma_one_event(event, ecal_hits_x, ecal_hits_y, ecal_hits_z, hcal_hits_x, hcal_hits_y, hcal_hits_z):
     rotated_good_event_ecal_hits = rotate_hits(np.column_stack((ecal_hits_x[event],ecal_hits_y[event],ecal_hits_z[event])))
     rotated_good_event_hcal_hits = rotate_hits(np.column_stack((hcal_hits_x[event],hcal_hits_y[event],hcal_hits_z[event])))
 
@@ -38,12 +75,15 @@ def make_ecal_and_hcal_peaks(event, ecal_hits_x, ecal_hits_y, ecal_hits_z, hcal_
     good_hcal_data = energy_cut(good_hcal_data, .0005)
     good_ecal_data = energy_cut(good_ecal_data, .005)
 
-    combined_data = np.concatenate((good_ecal_data, good_hcal_data), axis=0)
-
     ecal_peaks = ECal_peak_finding(good_ecal_data)
     hcal_peaks = HCal_peak_finding(good_hcal_data, 80)
 
-    return ecal_peaks, hcal_peaks
+    proto_clusters, neutron_check = peak_merging(ecal_peaks, hcal_peaks)
+    proto_gamma_clusters = filter_cluster(proto_clusters, neutron_check)
+    gamma0_cluster = expand_cluster(proto_gamma_clusters[0], good_ecal_data, good_hcal_data, 37, .01, 400, 80)
+    gamma1_cluster = expand_cluster(proto_gamma_clusters[1], good_ecal_data, good_hcal_data, 37, .01, 400, 80)
+    both_gamma_clusters = np.append(gamma0_cluster, gamma1_cluster, axis=0)
+    visualize(good_hcal_data, both_gamma_clusters, "HCal data 25mrad rotated", "Expanded HCal gamma clusters")
 
 def draw_one_event(event, ecal_hits_x, ecal_hits_y, ecal_hits_z, hcal_hits_x, hcal_hits_y, hcal_hits_z):
     rotated_good_event_ecal_hits = rotate_hits(np.column_stack((ecal_hits_x[event],ecal_hits_y[event],ecal_hits_z[event])))
@@ -78,37 +118,6 @@ def filter_based_on_HCal_peaks(hcal_peaks):
         return False
     return True
 
-def calculate_energy_density_along_cylinder(peak1, peak2, hcal_hits, cylinder_radius, num_segments):
-    line_vector = peak2 - peak1
-    line_length = np.linalg.norm(line_vector)
-    line_unit_vector = line_vector / line_length
-
-    # Project hits onto the line
-    projections = (hcal_hits[:, :3] - peak1) @ line_unit_vector
-
-    # Filter hits that lie within the cylinder radius
-    radial_distances = np.linalg.norm(np.cross(hcal_hits[:, :3] - peak1, line_unit_vector), axis=1)
-    within_cylinder = radial_distances <= cylinder_radius
-    hits_in_cylinder = hcal_hits[within_cylinder]
-
-    # Segment the cylinder
-    segment_length = line_length / num_segments
-    energy_density = np.zeros(num_segments)
-
-    for i in range(num_segments):
-        segment_start = i * segment_length
-        segment_end = (i + 1) * segment_length
-
-        # Find hits within this segment
-        in_segment = (projections[within_cylinder] >= segment_start) & (projections[within_cylinder] < segment_end)
-        segment_hits = hits_in_cylinder[in_segment]
-
-        # Calculate energy density for this segment
-        segment_volume = np.pi * (cylinder_radius ** 2) * segment_length
-        total_energy = np.sum(segment_hits[:, 3])  # Summing the energy values
-        energy_density[i] = total_energy / segment_volume
-
-    return energy_density 
 
 def define_core_points(hcal_hits, epsilon, min_neighbors):
     neighbors_info = NearestNeighbors(radius=epsilon).fit(hcal_hits[:, :3])
@@ -166,8 +175,8 @@ def expand_cluster(seed_cluster, ecal_hits, hcal_hits, distance_cutoff, energy_j
                 distance_xy = np.linalg.norm(neighbor_position[:2] - seed_position[:2])
                 
                 #TO-DO: add z distance into consideration here
-                if distance_xy < 40:
-                    mod_energy_jump_threshold = 3*energy_jump_threshold 
+                if distance_xy < 30:
+                    mod_energy_jump_threshold = 2*energy_jump_threshold 
 
                 if neighbor_energy <= average_energy + mod_energy_jump_threshold and distance_z <= max_distance_z and distance_xy <= max_distance_xy:
                     new_hits.append(neighbor_hit)
@@ -205,18 +214,19 @@ def filter_cluster(clusters, deep_neutron_check):
 
 def peak_merging(ecal_peaks, hcal_peaks):
 
+    depth_cut = 36050
+
     clusters = []
-    early_hcal_peaks = hcal_peaks[hcal_peaks[:,2] < 36050]
-    #print(early_hcal_peaks)
+    early_hcal_peaks = hcal_peaks[hcal_peaks[:,2] < depth_cut]
 
     deep_neutron_event = False
 
-    if(ecal_peaks.shape[0] == 2 and hcal_peaks[np.argmax(hcal_peaks[:,3]),2] > 36050):
+    if(ecal_peaks.shape[0] == 2 and hcal_peaks[np.argmax(hcal_peaks[:,3]),2] > depth_cut):
         deep_neutron_event = True
 
     distances_xy = sp.spatial.distance.cdist(early_hcal_peaks[:, :2], ecal_peaks[:, :2])
 
-    xy_distance_cutoff = 90
+    xy_distance_cutoff = 80
 
     xy_distance_mask = distances_xy > xy_distance_cutoff
     rows_above_threshold = np.all(xy_distance_mask, axis=1)
@@ -407,7 +417,6 @@ def visualize(original, reconstructed, title1, title2):
     plt.show()
 
 
-#infile="" 
 infile="/home/alessio/RIKENSUMMER/data/Lambda_allGeV_ZDC_lyso_sipm.edm4hep_r100.root"
 
 log_file = '/home/alessio/RIKENSUMMER/myscripts/r100_good_events_log.txt'
@@ -433,27 +442,5 @@ ecal_hits_z = events_tree["EcalFarForwardZDCHits.position.z"].array(library="np"
 ecal_hits_energy = events_tree["EcalFarForwardZDCHits.energy"].array(library="np")
 
 #looping_through_events(indices, ecal_hits_x, ecal_hits_y, ecal_hits_z, hcal_hits_x, hcal_hits_y, hcal_hits_z)
-draw_one_event(5, ecal_hits_x, ecal_hits_y, ecal_hits_z, hcal_hits_x, hcal_hits_y, hcal_hits_z)
-
-event = 5
-
-rotated_good_event_ecal_hits = rotate_hits(np.column_stack((ecal_hits_x[event],ecal_hits_y[event],ecal_hits_z[event])))
-rotated_good_event_hcal_hits = rotate_hits(np.column_stack((hcal_hits_x[event],hcal_hits_y[event],hcal_hits_z[event])))
-
-good_hcal_data = np.column_stack((rotated_good_event_hcal_hits, hcal_hits_energy[event].T))
-good_ecal_data = np.column_stack((rotated_good_event_ecal_hits, ecal_hits_energy[event].T))
-
-good_hcal_data = energy_cut(good_hcal_data, .0005)
-good_ecal_data = energy_cut(good_ecal_data, .005)
-
-combined_data = np.concatenate((good_ecal_data, good_hcal_data), axis=0)
-
-ecal_peaks = ECal_peak_finding(good_ecal_data)
-hcal_peaks = HCal_peak_finding(good_hcal_data, 80)
-
-#proto_clusters, neutron_check = peak_merging(ecal_peaks, hcal_peaks)
-#proto_gamma_clusters = filter_cluster(proto_clusters, neutron_check)
-#gamma0_cluster = expand_cluster(proto_gamma_clusters[0], good_ecal_data, good_hcal_data, 37, .01, 400, 80)
-#gamma1_cluster = expand_cluster(proto_gamma_clusters[1], good_ecal_data, good_hcal_data, 37, .01, 400, 80)
-#both_gamma_clusters = np.append(gamma0_cluster, gamma1_cluster, axis=0)
-#visualize(good_hcal_data, both_gamma_clusters, "HCal data 25mrad rotated", "Expanded HCal gamma clusters")
+#draw_one_event(9997, ecal_hits_x, ecal_hits_y, ecal_hits_z, hcal_hits_x, hcal_hits_y, hcal_hits_z)
+find_gamma_one_event(14, ecal_hits_x, ecal_hits_y, ecal_hits_z, hcal_hits_x, hcal_hits_y, hcal_hits_z)
