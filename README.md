@@ -1,7 +1,5 @@
 # RIKEN-ZDC-Study
 
-Bing Bong!
-
 DBSCAN Clustering background: 
 The algorithm currently works only for one event at a time. Next update will fix this as well as how rotate function works. 
 
