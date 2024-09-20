@@ -1,6 +1,6 @@
 # RIKEN-ZDC-Study
 
-DDSIM STEERING: (most photons should hit ZDC, may miss a few due to ZDC geometry and location) 
+DDSIM STEERING:
 ddsim --compactFile $DETECTOR_PATH/$DETECTOR_CONFIG.xml -G -N 10 --gun.thetaMin "0.95*deg" --gun.thetaMax "1.05*deg" --gun.phiMin "0*deg" --gun.phiMax "360*deg" --gun.distribution "uniform" --gun.momentumMin "1*GeV" --gun.momentumMax "10*GeV" --gun.particle "gamma" --outputFile gammatest.edm4hep.root
 
 DBSCAN Clustering background: 
