@@ -1,9 +1,8 @@
-#TODO: add a thrid step that tries to identify photon clusters using KMeans. If the Ecal has two high energy clusters in it
-#but the HCal doesnt in the lower layers, use the centroid of the ECal clusters to find the cores for KMeans and force it to 
-#break merged clusters with core locations before  certain depth in the ZDC
+#TODO: use the centroid of the ECal clusters to find the cores for KMeans and force it to break merged 
+#clusters with core locations before certain depth in the ZDC
 #TODO: fix the extract angles function (no need to extract data, just calculate everything)
+#TODO: fix the rotate function 
 
-import ROOT # type: ignore
 import numpy as np # type: ignore
 import matplotlib # type: ignore
 import matplotlib.pyplot as plt # type: ignore
@@ -217,12 +216,35 @@ def step_1_check(clusters_1):
 
 
 def calculate_weighted_center(cluster):
-    total_weight = sum(hit[3] for hit in cluster)  # Sum of energies
-    weighted_x = sum(hit[0] * hit[3] for hit in cluster) / total_weight  # Weighted average of x
-    weighted_y = sum(hit[1] * hit[3] for hit in cluster) / total_weight  # Weighted average of y
-    weighted_z = sum(hit[2] * hit[3] for hit in cluster) / total_weight  # Weighted average of z
+    total_weight = sum(hit[3] for hit in cluster)  #Sum of energies
+    weighted_x = sum(hit[0] * hit[3] for hit in cluster) / total_weight  #weighted average of x
+    weighted_y = sum(hit[1] * hit[3] for hit in cluster) / total_weight  #weighted average of y
+    weighted_z = sum(hit[2] * hit[3] for hit in cluster) / total_weight  #weighted average of z
     point = [weighted_x, weighted_y, weighted_z]
     return point
+
+#Orthogonal distance regression - used to find line of best fot for photons using HCal hits
+def odr_4d(cluster): 
+    #Prep the data
+    x = np.array([hit[0] for hit in cluster])
+    y = np.array([hit[1] for hit in cluster])
+    z = np.array([hit[2] for hit in cluster])
+    energy = np.array([hit[3] for hit in cluster])
+    data = np.concatenate((x[:, np.newaxis], y[:, np.newaxis], z[:, np.newaxis], energy[:, np.newaxis]), axis=1)
+    #data = np.concatenate((x[:, np.newaxis], y[:, np.newaxis], z[:, np.newaxis]), axis=1)
+
+    #Calculate the mean 
+    datamean = data.mean(axis=0)
+
+    #Do a SVD on the mean-centered data.
+    uu, dd, vv = np.linalg.svd(data - datamean)
+    #uu, dd, vv = np.linalg.svd(data - datamean, full_matrices=False)
+
+    #Find points on the line (just need 2)
+    linepts = vv[0] * np.mgrid[-100:100:2j][:, np.newaxis]
+    linepts += datamean
+
+    return linepts
 
 
 def error_bars(layer):
@@ -230,23 +252,30 @@ def error_bars(layer):
     # Using zip to split list by item of interest
     x, y, z, energy, tag = zip(*layer)
     x = list(x)
+    x = np.array(x)
     y = list(y)
+    y = np.array(y)
     z = list(z)
+    z = np.array(z)
+    energy = list(energy)
 
-    if len(x) == 1: 
+    if len(energy) == 1: 
         x_err = 0 
+        y_err = 0
+        z_err = 0
     else: 
-        x_err = stat.stdev(x)
+        #energy = scale_energy(energy)
+        #energy = np.array(energy)
+        #weighted_mean_x = np.average(x, weights=energy)
+        #x_err = np.average((x - weighted_mean_x)**2, weights=energy)
+        #weighted_mean_y = np.average(y, weights=energy)
+        #y_err = np.average((y - weighted_mean_y)**2, weights=energy)
+        #weighted_mean_z = np.average(z, weights=energy)
+        #z_err = np.average((z - weighted_mean_z)**2, weights=energy)
+        x_err = np.std(x)
+        y_err = np.std(y)
+        z_err = np.std(z)
 
-    if len(y) == 1: 
-        y_err = 0 
-    else: 
-        y_err = stat.stdev(y)
-
-    if len(z) == 1: 
-        z_err = 0 
-    else: 
-        z_err = stat.stdev(z)
 
     error = [x_err, y_err, z_err]
     return error
@@ -267,13 +296,86 @@ def split_by_layer(cluster, hcal_pts):
     return layers
  
  
+#Combine the photon clusters in the ECal and HCal 
+def pair_clusters(clusters_mod):
+    #Split photon clusters by ECal and HCal and copy the original seperate clusters into another dictionary 
+    h_clusters = [] 
+    e_clusters = [] 
+    clusters_g = {} 
+    for (key, cluster) in list(clusters_mod.items()):
+        #Ignore the noise clusters
+        if (isinstance(key, str) and key.startswith('-1')) or key == -1: 
+            continue
+        else: 
+            core = np.array(np.mean([p[:3] for p in cluster], axis=0))
+            #Ignore the neutron clusters
+            if core[2] >= 36100:
+                continue
+            else: 
+                hit = cluster[0]
+                if hit[-1] == 'h': 
+                    h_clusters.append(cluster)
+                else: 
+                    e_clusters.append(cluster)
+                clusters_g[key] = clusters_mod.pop(key)
+
+    #Combine the closest ECal and HCal clusters
+    combined = [] 
+    for h_cluster in h_clusters:
+        h_x = h_cluster[3][0]
+        closest_e_cluster = min(e_clusters, key=lambda e_cluster: abs(e_cluster[3][0] - h_x))
+        temp_list = h_cluster + closest_e_cluster
+        combined.append(temp_list)
+        e_clusters.remove(closest_e_cluster)
+
+    #Add the combined clusters back into clusters mod 
+    clusters_mod[90] = combined[0]
+    clusters_mod[91] = combined[1]
+
+    return clusters_mod
+
+
+def find_points_odr(clusters_mod): 
+    clusters_mod = pair_clusters(clusters_mod)
+    #Find points needed to make photon vectors
+    cluster_points_n = [] 
+    cluster_points_g = []
+    #Find the photon clusters and seperate them in ECal and HCal 
+    for key, cluster in clusters_mod.items():
+        temp_list_n = []
+        temp_list_g = [] 
+        #ignore the noise clusters
+        if (isinstance(key, str) and key.startswith('-1')) or key == -1: 
+            continue
+        else: 
+            core = np.array(np.mean([p[:3] for p in cluster], axis=0))
+            #Neutron 
+            if core[2] >= 36100:
+                point = odr_4d(cluster)
+                temp_list_n = [key, "n", "h", point] 
+            #Photons
+            else: 
+                point = odr_4d(cluster)
+                temp_list_g = [key, "g", "e+h", point]
+                
+            cluster_points_g.append(temp_list_g)
+            cluster_points_n.append(temp_list_n)
+
+    cluster_points_n = [x for x in cluster_points_n if x]
+    cluster_points_g = [x for x in cluster_points_g if x]
+    return (cluster_points_n, cluster_points_g)
+
+
 def find_points(clusters_mod): 
     #Find points needed to make photon vectors
-    cluster_points = [] 
-    error_list = []
+    cluster_points_n = [] 
+    cluster_points_g = []
+    error_list_n = []
+    error_list_g = []
     #Find the photon clusters and seperate them in ECal and HCal 
     for i, (key, cluster) in enumerate(clusters_mod.items()):
-        temp_list = [] 
+        temp_list_n = []
+        temp_list_g = [] 
         #ignore the noise clusters
         if (isinstance(key, str) and key.startswith('-1')) or key == -1: 
             None
@@ -289,19 +391,26 @@ def find_points(clusters_mod):
                         Ecal = True
             else: 
                 Photon = True
+                for hit in cluster: 
+                    if hit[4] == 'h': 
+                        Hcal = True
+                    else: 
+                        Ecal = True
 
-
-            """
-            #Find the weighted average position of photon hits in ECal
+            #ECal resolution is not good so ignore the ECal cluster
             if (Photon == True) and (Ecal == True):
-                point = calculate_weighted_center(cluster)
-                temp_list = [key, "g", "e", point]
-                #temp_list = [point]
-            """
+                None 
+
+            #Find points for line of best fit of photon hits in HCal
+            elif (Photon == True) and (Ecal != True): 
+                point = odr_4d(cluster)
+                #print(key,"\n", point, "\n****\n")
+                #cluster = [list(elem) for elem in cluster]
+                temp_list_g = [key, "g", "h", point]
             
             #Split neutron hits by layer in Hcal and find the weighted average position
-            if (Neutron == True) and (Hcal == True): 
-                temp_list = [key, "n", "h"] 
+            elif (Neutron == True) and (Hcal == True): 
+                temp_list_n = [key, "n", "h"] 
                 temp_error = [] 
                 hits_by_layer = split_by_layer(cluster, hcal_pts)
                 for layer in hits_by_layer: 
@@ -309,36 +418,66 @@ def find_points(clusters_mod):
                     point = calculate_weighted_center(layer)
                     error = error_bars(layer)
                     temp_list_h = [point]
-                    temp_list.extend(temp_list_h)
+                    temp_list_n.extend(temp_list_h)
                     temp_error.append(error)
                 
-            cluster_points.append(temp_list)
-            error_list.append(temp_error)
+            cluster_points_g.append(temp_list_g)
+            cluster_points_n.append(temp_list_n)
+            error_list_n.append(temp_error)
 
-    cluster_points = [x for x in cluster_points if x]
-    cluster_points = cluster_points[0]
-    return (cluster_points, temp_error)
+    cluster_points_n = [x for x in cluster_points_n if x]
+    cluster_points_n = cluster_points_n[0]
+    cluster_points_g = [x for x in cluster_points_g if x]
+    return (cluster_points_n, cluster_points_g, error_list_n, error_list_g)
 
 
-def find_vectors(cluster_points):
-    clusters = cluster_points  # Assuming cluster_points is a list of clusters
-    point_data_1 = [] 
-    point_data_2 = [] 
-    for list in cluster_points: 
-        if not list:
-            continue
-        if list[0] == 3: 
-            point_data_1.extend([list[3]])
-        elif list[0] == 4: 
-            point_data_2.extend([list[3]])
-        elif list[0] == 1:
-            point_data_1.extend(list[3:])
-        elif list[0] == 2: 
-            point_data_2.extend(list[3:])
-        else: 
-            None
+def find_vertex(cluster_points_g, error_g):
+    #Separate the HCal and ECal clusters
+    for (i, cluster) in enumerate(cluster_points_g): 
+        cluster.append(error_g[i])
+    h_clusters = [cluster for cluster in cluster_points_g if cluster[2] == 'h']
+    e_clusters = [cluster for cluster in cluster_points_g if cluster[2] == 'e']
 
-    return point_data_1
+    #Find the clusters that are closest to each other and pair their points to define the lines 
+    vecs = [] 
+    vecs_err = []
+    for h_cluster in h_clusters:
+        h_x = h_cluster[3][0]
+        closest_e_cluster = min(e_clusters, key=lambda e_cluster: abs(e_cluster[3][0] - h_x))
+        vec = [closest_e_cluster[3], h_cluster[3]]
+        vec_err = [closest_e_cluster[4],h_cluster[4]]
+        vecs.append(vec)
+        vecs_err.append(vec_err)
+        e_clusters.remove(closest_e_cluster)
+    
+    #Define the lines and compute their unit vectors
+    XA0 = np.array(vecs[0][0])  
+    XA1 = np.array(vecs[0][1])  
+    XB0 = np.array(vecs[1][0])  
+    XB1 = np.array(vecs[1][1])  
+    UA = (XA1 - XA0) / np.linalg.norm(XA1 - XA0)  
+    UB = (XB1 - XB0) / np.linalg.norm(XB1 - XB0)  
+
+    #Find the unit vector for line C which is perpendicular to both A and B
+    UC = np.cross(UB, UA)
+    UC /= np.linalg.norm(UC)
+
+    #Solve the system of equations
+    RHS = XB0 - XA0
+    LHS = np.array([UA, -UB, UC]).T
+    try:
+        #Solve for the parameters t1, t2, t3
+        vals = np.linalg.solve(LHS, RHS)
+    except np.linalg.LinAlgError:
+        #In case LHS is singular (e.g., lines are parallel), use least squares
+        vals = np.linalg.lstsq(LHS, RHS, rcond=None)[0]
+
+    #The intersection point (approximate by using the midpoint between the closest points on the two lines)
+    P_A = XA0 + vals[0] * UA  #Closest point on line A
+    P_B = XB0 + vals[1] * UB  #Closest point on line B
+    vertex = (P_A + P_B) / 2  #Midpoint of closest approach
+        
+    return (vecs, vertex)
                 
 
 def cluster_energy(clusters_mod):
@@ -454,7 +593,6 @@ if __name__ == "__main__":
     event_filt = [] 
 
     #Make noise cuts (different for HCal and ECal hits)
-    print(event)
     for hit in event: 
         if hit[4] == "h":
             if hit[3] >= 0.001:
@@ -542,8 +680,10 @@ if __name__ == "__main__":
         clusters_mod = clusters_1
         print("Clustering Step: 1", "\n*******")
 
+    #print(clusters_mod)
     #print("\n*******", "\n",clusters_mod)
     #Step 3: 
+
 
     """
     e_list = cluster_energy(clusters_mod)
@@ -552,29 +692,48 @@ if __name__ == "__main__":
     print(result)
     """
 
-    #Reconstruction of Neutron Momentum Vector 
-    cluster_points, error = find_points(clusters_mod)
-    p1 = cluster_points[3:]
-    xerr = [val[0] for val in error]
-    yerr = [val[1] for val in error]
-    zerr = [val[2] for val in error]
- 
-    #Neutron Reconstruction plot 
-    fig1 = plt.figure(figsize=(16, 8))
-    ax1 = fig1.add_subplot(121, projection='3d')
-    x = [hit[0] for hit in p1]
-    y = [hit[1] for hit in p1]
-    z = [hit[2] for hit in p1]
-    sc = ax1.scatter(x, y, z, c="blue")
+    #Reconstruction of Neutron and Photon vectors
+    cluster_points_n, cluster_points_g = find_points_odr(clusters_mod)
+    pn = cluster_points_n[0][3:][0]
+    pg1 = cluster_points_g[0][3:][0]
+    pg2 = cluster_points_g[1][3:][0]
 
-    #Error bars
-    for i in range(len(x)):
-        ax1.plot([x[i] - xerr[i], x[i] + xerr[i]], [y[i], y[i]], [z[i], z[i]], color='grey', alpha = 0.5)
-        ax1.plot([x[i], x[i]], [y[i] - yerr[i], y[i] + yerr[i]], [z[i], z[i]], color='grey', alpha = 0.5)
-        ax1.plot([x[i], x[i]], [y[i], y[i]], [z[i] - zerr[i], z[i] + zerr[i]], color='grey', alpha = 0.5)
+
+    #Rotate true position vectors
+    gd1 = list(event_data_particles[event_id][2])
+    gd1 = [gd1[2], gd1[3]]
+    gd1 = rotate(gd1)
+    gd2 = list(event_data_particles[event_id][3])
+    gd2 = [gd2[2], gd2[3]]
+    gd2 = rotate(gd2)
+    nd = list(event_data_particles[event_id][1])
+    nd = [nd[2], nd[3]]
+    nd = rotate(nd)
+
+
+    #Neutron reconstruction plot 
+    fig1 = plt.figure(figsize=(16, 8))
+    ax0 = fig1.add_subplot(121, projection='3d')
+    sc = ax0.scatter([pn[0][0], pn[1][0]], [pn[0][1], pn[1][1]], [pn[0][2], pn[1][2]], color="black", alpha=1, s=10, label="Reconstructed hits")
+    ax0.plot([nd[0][0], nd[1][0]], [nd[0][1], nd[1][1]], [nd[0][2], nd[1][2]], color="green", alpha=1, label="True Vec n")
+    ax0.set_title("ZDC Neutron Reconstruction")
+    ax0.set_xlabel("X [mm]")
+    ax0.set_ylabel("Y [mm]")
+    ax0.set_zlabel("Z [mm]")
+    ax0.legend()
+
+    #Photon reconstruction plot 
+    ax1 = fig1.add_subplot(122, projection='3d')
+    sc = ax1.scatter([pg1[0][0], pg1[1][0]], [pg1[0][1], pg1[1][1]], [pg1[0][2], pg1[1][2]], color="blue", alpha=1, s=10, label="Reconstructed hits g2")
+    sc = ax1.scatter([pg2[0][0], pg2[1][0]], [pg2[0][1], pg2[1][1]], [pg2[0][2], pg2[1][2]], color="red", alpha=1, s=10, label="Reconstructed hits g1")
+    ax1.plot([gd1[0][0], gd1[1][0]], [gd1[0][1], gd1[1][1]], [gd1[0][2], gd1[1][2]], color="red", alpha=1, linestyle='-', label="True Vec g1")
+    ax1.plot([gd2[0][0], gd2[1][0]], [gd2[0][1], gd2[1][1]], [gd2[0][2], gd2[1][2]], color="blue", alpha=1, linestyle='-', label="True Vec g2")
+    ax1.set_title("ZDC Photon Reconstruction")
     ax1.set_xlabel("X [mm]")
     ax1.set_ylabel("Y [mm]")
     ax1.set_zlabel("Z [mm]")
+    ax1.legend()
+    
 
 
     #Create Clustering figure and define color list
@@ -637,8 +796,9 @@ if __name__ == "__main__":
 
     #plt.savefig("histogram_3d_test.png")
     #print("Histogram saved")
-    
+
     plt.show()
+
     
     #Keep running script until user closes it 
     input("Press Enter to exit")
