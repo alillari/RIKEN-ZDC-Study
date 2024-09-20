@@ -13,3 +13,24 @@ DBSCAN Clustering Instructions:
 5. I would also reccomend rotating the data before clustering. There is a function already in the analysis file but it needs to be modified to use it since it currently is looking for a list of lists that each contain "[x, y, z, energy]" as the input not a list of tuples. That being said clustering will work just fine even if you dont rotate the data.
 6. From here just run the analysis file! 
 
+Photon steering file
+
+import math
+
+from DDSim.DD4hepSimulation import DD4hepSimulation
+from g4units import cm, mm, GeV, MeV, radian, m
+SIM = DD4hepSimulation()
+
+SIM.numberOfEvents = 100000
+SIM.enableGun = True
+SIM.outputFile = "photon_fullcoverage_1to50GeV.edm4hep.root"
+
+SIM.gun.particle = "gamma"
+SIM.gun.momentumMin = 1*GeV
+SIM.gun.momentumMax = 50*GeV
+
+SIM.gun.phiMin = .025
+SIM.gun.phiMax = .03
+SIM.gun.thetaMin = -.034
+SIM.gun.thetaMax = .034
+SIM.gun.distribution = "uniform"
