@@ -107,7 +107,6 @@ float distance_neutron_closest_gamma(std::vector<double> neutron_vec, std::vecto
 
 int main(){
 	TChain* my_chain = new TChain("events");
-	//my_chain->Add("/home/alessio/RIKENSUMMER/eic/epic/lambda_20to220GeV.edm4hep.root");
 	//my_chain->Add("/home/alessio/RIKENSUMMER/data/*.root");
 	my_chain->Add("/home/alessio/RIKENSUMMER/data/Lambda_allGeV_ZDC_lyso_sipm.edm4hep_r100.root");
 	//my_chain->Add("/home/alessio/RIKENSUMMER/angle_data/*.root");
@@ -124,7 +123,7 @@ int main(){
 	TH2F* lambda_decay_position_angle = new TH2F("lambda_decay_position_angle", "#Lambda decay position vs. #Lambda angle with proton beam; Decay position [mm]; #Lambda angle [rad]", 25, 0, 35500, 25, 0, .022);
 	TH1F* neutron_momentum_dist = new TH1F("neutron_momentum_dist", "Distribution of neutron momentum; neutron momentum [GeV]; Counts", 100, 0, 270);
 	TH1F* pion_momentum_dist = new TH1F("pion_momentum_dist", "Distribution of #pi^{0} momentum; #pi^{0} momentum [GeV]; Counts", 100, 0, 100);
-	TH1F* neutron_z_end_point_dist = new TH1F("neutron_z_end_point_dist", "Distribution of the 25mrad z end point of neutron; Z end point [mm]; Counts", 80, 35650, 37000);
+	TH1F* neutron_z_end_point_dist = new TH1F("neutron_z_end_point_dist", "Distribution of the 25mrad z end point of neutron; Z end point [mm]; Counts", 100, 35650, 37000); //35650
 	TH1F* two_gamma_z_end_point_dist = new TH1F("two_gamma_z_end_point", "Distribution of the 25mrad z end point of both #gamma; Z end point [mm]; Counts", 100, 35650, 36200);
 	TH2F* neutron_xy_end_point_dist = new TH2F("neutron_xy_end_point_dist", "Distribution of 25mrad x vs y end points of neutron; X end point [mm]; Y end point [mm]", 200, -300, 300, 200, -300, 300);
 	TH2F* two_gamma_xy_end_point_dist = new TH2F("two_gamma_xy_end_point_dist", "Distribution of 25mrad x vs y end points of two #gamma; X end point [mm]; Y end point [mm]", 200, -300, 300, 200, -300, 300);
@@ -132,12 +131,17 @@ int main(){
 	TH2F* lambda_pion_momentum_dist = new TH2F("lambda_pion_momentum_dist", "#Lambda momentum vs #pi^{0} momentum; #Lambda momentum [GeV]; #pi^{0} [GeV]", 100, 20, 270, 100, 0, 100);
 	TH2F* lambda_decay_pion_momentum = new TH2F("lambda_decay_pion_momentum", "#Lambda decay distance vs #pi^{0} momentum; #Lambda decay distance [mm]; #pi^{0} [GeV]", 100, 0, 35500, 100, 0, 100);
 	TH2F* lambda_decay_neutron_momentum = new TH2F("lambda_decay_neutron_momentum", "#Lambda decay distance vs neutron momentum; #Lambda decay distance [mm]; neutron momentum [GeV]", 100, 0, 35500, 100, 0, 270);
+	TH1F* photon_momentum = new TH1F("photon_momentum", "Momentum of #gamma; Momentum [GeV]; Counts");
+	TH2F* lambda_momentum_photon_momentum = new TH2F();
+
 	TH1F* neutron_gamma_closest_distance_dist = new TH1F("neutron_gamma_closest_distance_dist", "Distance in Ecal of neutron and closest #gamma; Distance [mm]; Counts", 25, 0, 850);
 	TH2F* lambda_momentum_closest_distance = new TH2F("lambda_momentum_closest_distance", "#Lambda momentum vs. closest distance of neutron and #gamma; #Lambda momentum [GeV]; n #gamma distance [mm]", 25, 20, 270, 25, 0, 850);
 	TH2F* lambda_decay_dist_closest_distance = new TH2F("lambda_decay_dist_closest_distance", "#Lambda Decay distance vs closest distance of neutron and #gamma; #Lambda decay distance [mm]; n #gamma distance [mm]", 100, 0, 35500, 100, 0, 850);
 	TH2F* lambda_angle_neutron_angle = new TH2F("lambda_angle_neutron_angle", "#Lambda angle with proton beam vs. neutron angle with proton beam; #Lambda angle [rad]; neutron angle [rad]", 100, 0, .022, 100, 0, .05);
 	TH1F* neutron_gamma_endpoint_closest_distance_dist = new TH1F("neutron_gamma_endpoint_closest_distance_dist", "Distribution of the distance between neutron and closest gamma for all events; Distance [mm]; Counts", 200, 0, 1600);
 	TH2F* lambda_momentum_vs_neutron_gamma_endpoint_closest_distance_dist = new TH2F("lambda_momentum_vs_neutron_gamma_endpoint_closest_distance_dist", "#Lambda momentum vs. closest neutron to #gamma distance; #Lambda momentum [GeV]; Distance [mm]", 100, 20, 270, 200, 0, 1600);
+	TH1F* gamma_energy_imbalance = new TH1F("gamma_energy_imbalance", "Energy Difference between photons; Energy difference between photons [GeV]; Counts", 100, -50, 50);
+	TH2F* lambda_momentum_vs_gamma_energy_imbalance = new TH2F("lambda_momentum_vs_gamma_energy_imbalance", "#Lambda momentum vs. photon energy difference; #Lambda momentum [GeV]; Photon energy difference [GeV]", 100, 20, 270, 100, -50, 50);
 
 	TH1F* hit_lambda_momentum_dist = new TH1F("hit_lambda_momentum_dist", "Distribution of #Lambda momentum of all particles in ZDC; #Lambda momentum [GeV]; Counts", 25, 0, 270);
 	TH1F* hit_lambda_decay_position_dist = new TH1F("hit_lambda_decay_position_dist", "Distribution of #Lambda decay length of all particles in ZDC; #Lambda decay length [mm]; Counts", 25, 0, 35500);
@@ -147,7 +151,7 @@ int main(){
 	TH2F* hit_lambda_decay_position_angle = new TH2F("hit_lambda_decay_position_angle", "#Lambda decay position vs. #Lambda angle with proton beam for all particles in Ecal; Decay position [mm]; #Lambda angle [rad]", 25, 0, 35500, 25, 0, .022);
 	TH1F* hit_neutron_momentum_dist = new TH1F("hit_neutron_momentum_dist", "Distribution of neutron momentum of all particle in ZDC; neutron momentum [GeV]; Counts", 100, 0, 270);
 	TH1F* hit_pion_momentum_dist = new TH1F("hit_pion_momentum_dist", "Distribution of #pi^{0} momentum of all particle in ZDC; #pi^{0} momentum [GeV]; Counts", 100, 0, 100);
-	TH1F* hit_neutron_z_end_point_dist = new TH1F("hit_neutron_z_end_point_dist", "Distribution of the 25mrad z end point of neutron for all particles land in ZDC; Z end point [mm]; Counts", 100, 35650, 37000);
+	TH1F* hit_neutron_z_end_point_dist = new TH1F("hit_neutron_z_end_point_dist", "Distribution of the 25mrad z end point of neutron for all particles land in ZDC; Z end point [mm]; Counts", 100, 356500, 37000); //35650
 	TH2F* hit_lambda_momentum_vs_neutron_z_end_point = new TH2F("hit_lambda_momentum_vs_neutron_z_end_point", "#Lambda momentum vs. neutron 25mrad rotated z end point for all particles land in ZDC; #Lambda momentum [GeV]; Z [mm]", 100, 20, 270, 80, 35800, 37000);
 	TH1F* hit_two_gamma_z_end_point_dist = new TH1F("hit_two_gamma_z_end_point", "Distribution of the 25mrad z end point of both #gamma for all particles land in ZDC; Z end point [mm]; Counts", 100, 35600, 36200);
 	TH2F* hit_neutron_xy_end_point_dist = new TH2F("hit_neutron_xy_end_point_dist", "Distribution of 25mrad x vs y end points of neutron for all particles land in ZDC; X end point [mm]; Y end point [mm]", 200, -300, 300, 200, -300, 300);
@@ -163,6 +167,8 @@ int main(){
 	TH2F* hit_lambda_angle_neutron_angle = new TH2F("hit_lambda_angle_neutron_angle", "#Lambda angle with proton beam vs. neutron angle with proton beam for all particles in Ecal; #Lambda angle [rad]; neutron angle [rad]", 100, 0, .022, 100, 0, .05);
 	TH1F* hit_neutron_gamma_endpoint_closest_distance_dist = new TH1F("hit_neutron_gamma_endpoint_closest_distance_dist", "Distribution of the distance between neutron and closest gamma for all particles in ZDC; Distance [mm]; Counts", 200, 0, 1600);
 	TH2F* hit_lambda_momentum_vs_neutron_gamma_endpoint_closest_distance_dist = new TH2F("hit_lambda_momentum_vs_neutron_gamma_endpoint_closest_distance_dist", "#Lambda momentum vs. closest neutron to #gamma distance for all particles in ZDC; #Lambda momentum [GeV]; Distance [mm]", 100, 20, 270, 200, 0, 1600);
+	TH1F* hit_gamma_energy_imbalance = new TH1F("hit_gamma_energy_imbalance", "Energy difference between photons for events where all particles land in ZDC; Energy difference [GeV]; Counts", 100, -50, 50);
+	TH2F* hit_lambda_momentum_vs_gamma_energy_imbalance = new TH2F("hit_lambda_momentum_vs_gamma_energy_imbalance", "#Lambda momentum vs energy difference of photons; #Lambda momentum [GeV]; Energy difference [GeV]", 100, 20, 270, 100, -50, 50);
 
 	TH1F* two_gamma_angle_hist = new TH1F("two_gamma_angle_hist", "Angle between two #gamma for all events; Angle (rad); Counts", 50, 0, 1);
 	TH1F* neutron_angle_hist = new TH1F("neutron_angle_hist", "Angle of neutron from #Lambda direction for all events; Angle (rad); Counts", 25, 0, .01);
@@ -178,7 +184,6 @@ int main(){
 
 	TH2F* neutron_hit_map = new TH2F("neutron_hit_map", "Hit map for neutron in Ecal, rotated frame; X axis [mm]; Y axis [mm]", 20, -300, 300, 20, -300, 300);
 	TH2F* gamma_hit_map = new TH2F("gamma_hit_map", "Hit map for 2 gamma in Ecal, rotated frame; X axis [mm]; Y axis [mm]", 20, -300, 300, 20, -300, 300);
-
 
 	TTreeReaderArray<int> pdg(my_reader, "MCParticles.PDG");
 	TTreeReaderArray<double> vert_x(my_reader, "MCParticles.vertex.x");
@@ -197,6 +202,7 @@ int main(){
 
 	TTreeReaderArray<int> parent_id(my_reader, "_MCParticles_parents.index");
 
+	int good_event_counter = 0;
 	while(my_reader.Next()){
 		bool beam_pipe_check = beam_pipe_collision(pdg);
 		if(!beam_pipe_check){continue;}
@@ -214,7 +220,7 @@ int main(){
 		
 		float neutron_mom_mag = std::sqrt(std::pow(mom_x[neutron_index], 2) + std::pow(mom_y[neutron_index], 2) + std::pow(mom_z[neutron_index], 2));
 		float pion_mom_mag = std::sqrt(std::pow(mom_x[pion_index], 2) + std::pow(mom_y[pion_index], 2) + std::pow(mom_z[pion_index], 2));
-		
+
 		lambda_momentum_dist->Fill(mom_mag);
 		lambda_decay_position_dist->Fill(decay_dist);
 		lambda_momentum_decay_position->Fill(mom_mag, decay_dist);
@@ -228,7 +234,7 @@ int main(){
 		lambda_pion_momentum_dist->Fill(mom_mag, pion_mom_mag);
 		lambda_decay_pion_momentum->Fill(decay_dist, pion_mom_mag);
 		lambda_decay_neutron_momentum->Fill(decay_dist, neutron_mom_mag);
-
+		
 		float gamma1_mom_mag = std::sqrt(std::pow(mom_x[gamma1_index], 2) + std::pow(mom_y[gamma1_index], 2) + std::pow(mom_z[gamma1_index], 2));
 		float gamma2_mom_mag = std::sqrt(std::pow(mom_x[gamma2_index], 2) + std::pow(mom_y[gamma2_index], 2) + std::pow(mom_z[gamma2_index], 2));
 		float two_gamma_angle = std::acos((mom_x[gamma1_index]*mom_x[gamma2_index]+mom_y[gamma1_index]*mom_y[gamma2_index]+mom_z[gamma1_index]*mom_z[gamma2_index])/(gamma1_mom_mag*gamma2_mom_mag));
@@ -240,6 +246,8 @@ int main(){
 		momentum_vs_two_gamma_angle->Fill(mom_mag, two_gamma_angle);
 		momentum_vs_neutron_angle->Fill(mom_mag, neutron_angle);
 		lambda_angle_neutron_angle->Fill(lambda_angle, neutron_angle);
+		gamma_energy_imbalance->Fill(gamma1_mom_mag-gamma2_mom_mag);
+		lambda_momentum_vs_gamma_energy_imbalance->Fill(mom_mag, gamma1_mom_mag - gamma2_mom_mag);
 
 		std::vector<double> gamma1_pos = loc_in_ecal(vert_x, vert_y, vert_z, mom_x, mom_y, mom_z, gamma1_index);
 		std::vector<double> gamma2_pos = loc_in_ecal(vert_x, vert_y, vert_z, mom_x, mom_y, mom_z, gamma2_index);
@@ -280,11 +288,13 @@ int main(){
 		two_gamma_xy_end_point_dist->Fill(rotated_gamma2_endpoint[0], rotated_gamma2_endpoint[1]);
 
 		neutron_gamma_endpoint_closest_distance_dist->Fill(neutron_gamma_endpoint_dist);
-		bool neutron_endpoint_check = rotated_neutron_endpoint[2] > 36000;
+		bool neutron_endpoint_check = rotated_neutron_endpoint[2] > 36300;
 		bool gamma_distance_check = two_gamma_distance > 45;
 
+		//Note I was experimenting with neutron endpoint cuts and gamma distance cuts
 		if(is_gamma1_in_ecal && is_gamma2_in_ecal && is_neutron_in_ecal && neutron_endpoint_check && gamma_distance_check){
 			std::cout<< std::to_string(row_id[0])<<std::endl;
+			good_event_counter++;
 			hit_lambda_momentum_dist->Fill(mom_mag);
 			hit_lambda_decay_position_dist->Fill(decay_dist);
 			hit_lambda_angle_dist->Fill(lambda_angle);
@@ -307,6 +317,8 @@ int main(){
 			hit_two_gamma_vs_neutron_angle->Fill(two_gamma_angle, neutron_angle);
 			hit_momentum_vs_two_gamma_angle->Fill(mom_mag, two_gamma_angle);
 			hit_momentum_vs_neutron_angle->Fill(mom_mag, neutron_angle);
+			hit_gamma_energy_imbalance->Fill(gamma1_mom_mag - gamma2_mom_mag);
+			hit_lambda_momentum_vs_gamma_energy_imbalance->Fill(mom_mag, gamma1_mom_mag - gamma2_mom_mag);
 
 			std::vector<double> rotated_neutron_pos = rotate_point(neutron_pos);
 			std::vector<double> rotated_gamma1_pos = rotate_point(gamma1_pos);
@@ -329,6 +341,7 @@ int main(){
 		}
 	}
 
+	std::cout<<"Number of good events: "<<good_event_counter<<std::endl;
 	TH2F* efficiency_plot = new TH2F(*hit_lambda_momentum_decay_position);
 	TH2F* efficiency_mom_angle_plot = new TH2F(*hit_lambda_momentum_angle);
 	TH1F* efficiency_lambda_decay_distance = new TH1F(*hit_lambda_decay_position_dist);
@@ -373,6 +386,8 @@ int main(){
 	lambda_momentum_closest_distance->Write();
 	lambda_decay_dist_closest_distance->Write();
 	lambda_angle_neutron_angle->Write();
+	gamma_energy_imbalance->Write();
+	lambda_momentum_vs_gamma_energy_imbalance->Write();
 
 	neutron_z_end_point_dist->Write();
 	two_gamma_z_end_point_dist->Write();
@@ -403,6 +418,8 @@ int main(){
 	hit_lambda_momentum_closest_distance->Write();
 	hit_lambda_decay_dist_closest_distance->Write();
 	hit_lambda_angle_neutron_angle->Write();
+	hit_gamma_energy_imbalance->Write();
+	hit_lambda_momentum_vs_gamma_energy_imbalance->Write();
 	
 	efficiency_plot->Write();
 	efficiency_lambda_decay_distance->Write();

@@ -114,12 +114,19 @@ std::vector<float> make_transverse_vector(std::vector<float> mom){
 	return transverse_momentum;
 }
 
+std::vector<float> make_longitudinal_vector(std::vector<float> mom){
+	std::vector<float> long_unit_vector = {std::sin(-.025), 0, std::cos(.025)};
+
+	float mom_unit_dot_prod = mom[0]*long_unit_vector[0] + mom[1]*long_unit_vector[1] + mom[2]*long_unit_vector[2];
+
+	std::vector<float> longitudinal_momentum({(mom_unit_dot_prod)*long_unit_vector[0], (mom_unit_dot_prod)*long_unit_vector[1], (mom_unit_dot_prod)*long_unit_vector[2]});
+
+	return longitudinal_momentum;
+}
 int main(){
 	TChain* my_chain = new TChain("events");
-	//my_chain->Add("/home/alessio/RIKENSUMMER/eic/epic/lambda_20to220GeV.edm4hep.root");
-	//my_chain->Add("/home/alessio/RIKENSUMMER/data/*.root");
-	//my_chain->Add("/home/alessio/RIKENSUMMER/data/Lambda_allGeV_ZDC_lyso_sipm.edm4hep_r100.root");
 	my_chain->Add("/home/alessio/RIKENSUMMER/angle_data/*.root");
+	//my_chain->Add("/home/alessio/RIKENSUMMER/angle_data/Lambda_allGeV_ZDC_lyso_sipm.edm4hep_r303.root");
 
 	TFile* output = new TFile("angular_lambda_study_output.root", "RECREATE");
 
@@ -128,10 +135,11 @@ int main(){
 	TH1F* lambda_momentum_dist = new TH1F("lambda_momentum_dist","Distribution of #Lambda momentum; #Lambda momentum [GeV]; Counts", 25, 0, 270);
 	TH1F* lambda_t_momentum_dist = new TH1F("lambda_t_momentum_dist", "Distribution of transverse momentum of #Lambda; Transverse momentum [GeV]; Counts", 50, 0, 5);
 	TH1F* lambda_decay_position_dist = new TH1F("lambda_decay_position_dist", "Distribution of #Lambda decay length; #Lambda decay length [mm]; Counts", 25, 0, 35500);
-	TH1F* lambda_angle_dist = new TH1F("lambda_angle_dist", "Distribution of #Lambda angle calculated from proton beam direction; Angle [rad]; Counts", 25, 0, .022);
+	TH1F* lambda_angle_dist = new TH1F("lambda_angle_dist", "Distribution of #Lambda angle calculated from 25 mrad; Angle [rad]; Counts", 25, 0, .022);
 	TH2F* lambda_momentum_decay_position = new TH2F("lambda_momentum_decay_position", "#Lambda momentum vs. decay position; momentum [GeV]; decay position [mm]", 25, 20, 270, 25, 0, 35500);
 	TH2F* lambda_momentum_angle = new TH2F("lambda_momentum_angle", "#Lambda momentum vs. #Lambda angle with proton beam; #Lambda momentum [GeV]; #Lambda angle [rad]", 25, 0, 270, 25, 0, .022);
 	TH2F* lambda_decay_position_angle = new TH2F("lambda_decay_position_angle", "#Lambda decay position vs. #Lambda angle with proton beam; Decay position [mm]; #Lambda angle [rad]", 25, 0, 35500, 25, 0, .022);
+
 	TH1F* neutron_momentum_dist = new TH1F("neutron_momentum_dist", "Distribution of neutron momentum; neutron momentum [GeV]; Counts", 100, 0, 270);
 	TH1F* pion_momentum_dist = new TH1F("pion_momentum_dist", "Distribution of #pi^{0} momentum; #pi^{0} momentum [GeV]; Counts", 100, 0, 100);
 	TH1F* neutron_z_end_point_dist = new TH1F("neutron_z_end_point_dist", "Distribution of the 25mrad z end point of neutron; Z end point [mm]; Counts", 80, 35650, 37000);
@@ -152,13 +160,16 @@ int main(){
 	TH1F* hit_lambda_momentum_dist = new TH1F("hit_lambda_momentum_dist", "Distribution of #Lambda momentum for all particles in ZDC; #Lambda momentum [GeV]; Counts", 25, 0, 270);
 	TH1F* hit_lambda_t_momentum_dist = new TH1F("hit_lambda_t_momentum_dist", "Distribution of transverse #Lambda momentum for all particles in ZDC; #Lambda transverse momentum [GeV]; Counts", 50, 0, 5);
 	TH1F* hit_lambda_decay_position_dist = new TH1F("hit_lambda_decay_position_dist", "Distribution of #Lambda decay length for all particles in ZDC; #Lambda decay length [mm]; Counts", 25, 0, 35500);
-	TH1F* hit_lambda_angle_dist = new TH1F("hit_lambda_angle_dist", "Distribution of #Lambda angle with proton beam for all particles in Ecal; Angle [rad]; Counts", 25, 0, .022);
+	TH1F* hit_lambda_angle_dist = new TH1F("hit_lambda_angle_dist", "Distribution of #Lambda angle with 25 mrad for all particles land in ZDC; Angle [rad]; Counts", 25, 0, .022);
 	TH2F* hit_lambda_momentum_decay_position = new TH2F("hit_lambda_momentum_decay_position", "#Lambda momentum vs. decay position of all particle in ZDC; momentum [GeV]; decay distance [mm]", 25, 20, 270, 25, 0, 35500);
 	TH2F* hit_lambda_momentum_angle = new TH2F("hit_lambda_momentum_angle", "#Lambda momentum vs. #Lambda angle with proton beam for all particles in Ecal; #Lambda momentum [GeV]; #Lambda angle [rad]", 25, 0, 270, 25, 0, .022);
 	TH2F* hit_lambda_decay_position_angle = new TH2F("hit_lambda_decay_position_angle", "#Lambda decay position vs. #Lambda angle with proton beam for all particles in Ecal; Decay position [mm]; #Lambda angle [rad]", 25, 0, 35500, 25, 0, .022);
 	TH1F* hit_neutron_momentum_dist = new TH1F("hit_neutron_momentum_dist", "Distribution of neutron momentum of all particle in ZDC; neutron momentum [GeV]; Counts", 100, 0, 270);
 	TH1F* hit_pion_momentum_dist = new TH1F("hit_pion_momentum_dist", "Distribution of #pi^{0} momentum of all particle in ZDC; #pi^{0} momentum [GeV]; Counts", 100, 0, 100);
 	TH1F* hit_neutron_z_end_point_dist = new TH1F("hit_neutron_z_end_point_dist", "Distribution of the 25mrad z end point of neutron for all particles land in ZDC; Z end point [mm]; Counts", 100, 35650, 37000);
+	TH2F* hit_lambda_momentum_vs_lambda_t_momentum = new TH2F("hit_lambda_momentum_vs_lambda_t_momentum", "#Lambda P_t vs. total #Lambda P for all particles land in ZDC events; #Lambda P [GeV]; #Lambda P_t [GeV]", 100, 20, 270, 100, 0, 5);
+	TH2F* hit_lambda_l_momentum_vs_lambda_t_momentum = new TH2F("hit_lambda_l_momentum_vs_lambda_t_momentum", "#Lambda P_t vs. #Lambda P_l for all particles land in ZDC events; #Lambda P_l [GeV]; #Lambda P_t [GeV]", 100, 20, 270, 100, 0, 5);
+
 	TH2F* hit_lambda_momentum_vs_neutron_z_end_point = new TH2F("hit_lambda_momentum_vs_neutron_z_end_point", "#Lambda momentum vs. neutron 25mrad rotated z end point for all particles land in ZDC; #Lambda momentum [GeV]; Z [mm]", 100, 20, 270, 80, 35800, 37000);
 	TH1F* hit_two_gamma_z_end_point_dist = new TH1F("hit_two_gamma_z_end_point", "Distribution of the 25mrad z end point of both #gamma for all particles land in ZDC; Z end point [mm]; Counts", 100, 35600, 36200);
 	TH2F* hit_neutron_xy_end_point_dist = new TH2F("hit_neutron_xy_end_point_dist", "Distribution of 25mrad x vs y end points of neutron for all particles land in ZDC; X end point [mm]; Y end point [mm]", 200, -300, 300, 200, -300, 300);
@@ -174,6 +185,7 @@ int main(){
 	TH2F* hit_lambda_angle_neutron_angle = new TH2F("hit_lambda_angle_neutron_angle", "#Lambda angle with proton beam vs. neutron angle with proton beam for all particles in Ecal; #Lambda angle [rad]; neutron angle [rad]", 100, 0, .022, 100, 0, .05);
 	TH1F* hit_neutron_gamma_endpoint_closest_distance_dist = new TH1F("hit_neutron_gamma_endpoint_closest_distance_dist", "Distribution of the distance between neutron and closest gamma for all particles in ZDC; Distance [mm]; Counts", 200, 0, 1600);
 	TH2F* hit_lambda_momentum_vs_neutron_gamma_endpoint_closest_distance_dist = new TH2F("hit_lambda_momentum_vs_neutron_gamma_endpoint_closest_distance_dist", "#Lambda momentum vs. closest neutron to #gamma distance for all particles in ZDC; #Lambda momentum [GeV]; Distance [mm]", 100, 20, 270, 200, 0, 1600);
+	TH2F* hit_lambda_l_momentum_vs_neutron_z_end_point = new TH2F("hit_lambda_l_momentum_vs_neutron_z_end_point", "Longitudinal #Lambda momentum vs. neutron rotated z end point for all particles land in ZDC", 100, 20, 270, 100, 35650, 37000);
 
 	TH1F* two_gamma_angle_hist = new TH1F("two_gamma_angle_hist", "Angle between two #gamma for all events; Angle (rad); Counts", 50, 0, 1);
 	TH1F* neutron_angle_hist = new TH1F("neutron_angle_hist", "Angle of neutron from #Lambda direction for all events; Angle (rad); Counts", 25, 0, .01);
@@ -208,6 +220,7 @@ int main(){
 
 	TTreeReaderArray<int> parent_id(my_reader, "_MCParticles_parents.index");
 
+	int good_event_counter = 0;
 	while(my_reader.Next()){
 		bool beam_pipe_check = beam_pipe_collision(pdg);
 		if(!beam_pipe_check){continue;}
@@ -215,8 +228,10 @@ int main(){
 		float mom_mag = std::sqrt(std::pow(mom_x[0], 2) + std::pow(mom_y[0], 2) + std::pow(mom_z[0], 2));
 
 		std::vector<float> mom_vec({mom_x[0], mom_y[0], mom_z[0]});
+		std::vector<float> longitudinal_momentum = make_longitudinal_vector(mom_vec);
 		std::vector<float> transverse_momentum = make_transverse_vector(mom_vec);
 		float trans_mom_mag = std::sqrt(std::pow(transverse_momentum[0],2) + std::pow(transverse_momentum[1],2) + std::pow(transverse_momentum[2],2));
+		float long_mom_mag = std::sqrt(std::pow(longitudinal_momentum[0],2) + std::pow(longitudinal_momentum[1],2) + std::pow(longitudinal_momentum[2],2));
 
 		float decay_dist = std::sqrt(std::pow(vert_x[1], 2) + std::pow(vert_y[1], 2) + std::pow(vert_z[1], 2));
 		float lambda_angle = std::acos((mom_x[0]*std::sin(-.025) + mom_z[0]*std::cos(-.025))/(mom_mag));
@@ -297,11 +312,14 @@ int main(){
 		two_gamma_xy_end_point_dist->Fill(rotated_gamma2_endpoint[0], rotated_gamma2_endpoint[1]);
 
 		neutron_gamma_endpoint_closest_distance_dist->Fill(neutron_gamma_endpoint_dist);
-		bool neutron_endpoint_check = rotated_neutron_endpoint[2] > 36000;
+		bool neutron_endpoint_check = rotated_neutron_endpoint[2] > 35900;
 		bool gamma_distance_check = two_gamma_distance > 45;
+		bool neutron_gamma_distance_check = neutron_gamma_endpoint_dist > 250;
 
-		if(is_gamma1_in_ecal && is_gamma2_in_ecal && is_neutron_in_ecal && neutron_endpoint_check && gamma_distance_check){
-			//std::cout<< std::to_string(row_id[0])<<std::endl;
+		//Note, was studying how events look after neutron depth cut and neutron photon distance cut
+		if(is_gamma1_in_ecal && is_gamma2_in_ecal && is_neutron_in_ecal && neutron_endpoint_check){
+		//	std::cout<< std::to_string(row_id[0])<<std::endl;
+			good_event_counter++;
 			hit_lambda_momentum_dist->Fill(mom_mag);
 			hit_lambda_t_momentum_dist->Fill(trans_mom_mag);
 			hit_lambda_decay_position_dist->Fill(decay_dist);
@@ -309,6 +327,10 @@ int main(){
 			hit_lambda_momentum_decay_position->Fill(mom_mag, decay_dist);
 			hit_lambda_momentum_angle->Fill(mom_mag, lambda_angle);
 			hit_lambda_decay_position_angle->Fill(decay_dist, lambda_angle);
+
+			hit_lambda_momentum_vs_lambda_t_momentum->Fill(mom_mag, trans_mom_mag);
+			hit_lambda_l_momentum_vs_lambda_t_momentum->Fill(long_mom_mag, trans_mom_mag);
+
 			hit_neutron_momentum_dist->Fill(neutron_mom_mag);
 			hit_pion_momentum_dist->Fill(pion_mom_mag);
 			hit_lambda_neutron_momentum_dist->Fill(mom_mag, neutron_mom_mag);
@@ -342,10 +364,12 @@ int main(){
 			hit_two_gamma_xy_end_point_dist->Fill(rotated_gamma2_endpoint[0], rotated_gamma2_endpoint[1]);
 
 			hit_lambda_momentum_vs_neutron_z_end_point->Fill(mom_mag, rotated_neutron_endpoint[2]);
-		
+			hit_lambda_l_momentum_vs_neutron_z_end_point->Fill(long_mom_mag, rotated_neutron_endpoint[2]);
+
 			hit_neutron_gamma_endpoint_closest_distance_dist->Fill(neutron_gamma_endpoint_dist);
 		}
 	}
+	//std::cout<<"Total good events in angular data: "<<good_event_counter<<std::endl;
 
 	TH2F* efficiency_plot = new TH2F(*hit_lambda_momentum_decay_position);
 	TH2F* efficiency_mom_angle_plot = new TH2F(*hit_lambda_momentum_angle);
@@ -405,6 +429,10 @@ int main(){
 	hit_two_gamma_xy_end_point_dist->Write();
 	hit_neutron_gamma_endpoint_closest_distance_dist->Write();
 	hit_lambda_momentum_vs_neutron_z_end_point->Write();
+	hit_lambda_l_momentum_vs_neutron_z_end_point->Write();
+
+	hit_lambda_momentum_vs_lambda_t_momentum->Write();
+	hit_lambda_l_momentum_vs_lambda_t_momentum->Write();
 
 	hit_lambda_momentum_dist->Write();
 	hit_lambda_t_momentum_dist->Write();
