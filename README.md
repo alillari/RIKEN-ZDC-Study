@@ -1,7 +1,7 @@
 # RIKEN-ZDC-Study
 
 DDSIM STEERING:
-### ddsim --compactFile $DETECTOR_PATH/$DETECTOR_CONFIG.xml -G -N 100 --gun.thetaMin "-0.034" --gun.thetaMax "0.034" --gun.phiMin "-0.018" --gun.phiMax "-0.036" --gun.distribution "uniform" --gun.momentumMin "0*GeV" --gun.momentumMax "270*GeV" --gun.particle "gamma" --outputFile gammatest.edm4hep.root
+### ddsim --compactFile $DETECTOR_PATH/$DETECTOR_CONFIG.xml -G -N 1000 --gun.thetaMin "-0.034" --gun.thetaMax "0.034" --gun.phiMin "-0.018" --gun.phiMax "-0.036" --gun.distribution "uniform" --gun.momentumMin "0*GeV" --gun.momentumMax "50*GeV" --gun.particle "gamma" --outputFile gammatest.edm4hep.root
 
 DBSCAN Clustering background: 
 The algorithm currently works only for one event at a time. Next update will fix this as well as how rotate function works. 
